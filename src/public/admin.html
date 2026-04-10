@@ -1116,20 +1116,15 @@ async function loadPlayersFromServer() {
     try {
         const res = await fetch('/api/admin/players');
         const data = await res.json();
-        console.log('Ответ сервера:', data);
-        
         if (data.success) {
             players = data.players;
             renderPlayers();
             renderBans();
             updateStatsUI();
             addLog(`✅ Загружено ${players.length} игроков`, 'success');
-        } else {
-            addLog(`❌ Ошибка: ${data.error}`, 'error');
         }
     } catch (err) {
-        console.error('Ошибка загрузки игроков:', err);
-        addLog(`❌ Ошибка соединения: ${err.message}`, 'error');
+        addLog(`❌ Ошибка загрузки игроков: ${err.message}`, 'error');
     }
 }
 
@@ -1167,7 +1162,7 @@ async function initAdminPanel() {
         if (p) {
             await fetch(`${API_URL}/admin/players/${id}/ban`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${adminToken}` }
+                
             });
             await loadPlayersFromServer();
             addLog(`Игрок ${p.username} забанен`, 'error');
