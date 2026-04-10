@@ -5268,43 +5268,130 @@ function showWithdrawWindow() {
 }
 
 </script>
-<script>
-// ========== ПРОСТАЯ ЗАГРУЗКА ПРОФИЛЯ ==========
-(async function() {
-    const token = localStorage.getItem('mining_token');
+
+// ========== АВТОРИЗАЦИЯ И ЗАГРУЗКА ПРОФИЛЯ (ИСПРАВЛЕНА) ==========
+const token = localStorage.getItem('mining_token');
+
+async function loadUserProfile() {
     if (!token) {
         window.location.href = '/login.html';
-        return;
+        return false;
     }
-
+    
     try {
         const response = await fetch('/api/game/profile', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        
         const data = await response.json();
-
+        
         if (data.success && window.player) {
-            window.player.username = data.user.username;
-            window.player.balance = parseFloat(data.user.balance) || 0;
-            window.player.chips = data.user.chips || 0;
-            window.player.basePower = data.user.base_power || 2;
+            // Обновляем данные игрока из БД
+            player.username = data.user.username;
+            player.balance = parseFloat(data.user.balance) || 0;
+            player.chips = data.user.chips || 0;
+            player.basePower = data.user.base_power || 2;  // ⚠️ base_power (с подчёркиванием)
             
+            // Обновляем UI
             const profileSpan = document.getElementById('profileUsername');
-            if (profileSpan) profileSpan.innerText = window.player.username;
+            if (profileSpan) {
+                profileSpan.innerText = player.username;
+                console.log('✅ Имя пользователя установлено:', player.username);
+            }
             
-            if (typeof updateUI === 'function') updateUI();
-            if (typeof renderRigs === 'function') renderRigs();
+            // Обновляем баланс в интерфейсе
+            const balanceEl = document.getElementById('balanceLarge');
+            if (balanceEl) balanceEl.innerText = player.balance.toFixed(8);
+            
+            const chipsEl = document.getElementById('chipsCount');
+            if (chipsEl) chipsEl.innerText = Math.floor(player.chips);
+            
+            // Пересчитываем всё
             if (typeof recalc === 'function') recalc();
+            if (typeof renderRigs === 'function') renderRigs();
+            if (typeof updateUI === 'function') updateUI();
+            
+            console.log('✅ Профиль загружен:', player.username, '| Мощность:', player.basePower, 'TH/s');
+            return true;
         } else {
+            console.error('Ошибка загрузки профиля:', data.error);
+            localStorage.removeItem('mining_token');
+            window.location.href = '/login.html';
+            return false;
+        }
+    } catch (err) {
+        console.error('Ошибка запроса:', err);
+        localStorage.removeItem('mining_token');
+        window.location.href = '/login.html';
+        return false;
+    }
+}
+
+// Ждём загрузки DOM и объекта player
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => loadUserProfile(), 100);
+    });
+} else {
+    setTimeout(() => loadUserProfile(), 100);
+}
+
+</body>
+
+<script>
+console.log('=== ЗАГРУЗКА ИГРЫ ===');
+
+console.log('Токен:', token ? token.substring(0, 50) + '...' : 'НЕТ ТОКЕНА');
+
+if (token) {
+    fetch('/api/game/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log('Ответ сервера:', data);
+        if (data.success) {
+            console.log('Загружен игрок:', data.user.username);
+            // Здесь обновим данные
+            if (window.player) {
+                window.player.balance = data.user.balance;
+                window.player.chips = data.user.chips;
+                window.player.basePower = data.user.base_power;
+
+                setTimeout(() => {
+    const span = document.getElementById('profileUsername');
+    if (span && data.user.username) {
+        span.innerText = data.user.username;
+        console.log('✅ Имя обновлено через setTimeout:', span.innerText);
+    }
+}, 500);
+
+                window.player.username = data.user.username;
+                
+                // Обновляем имя в профиле
+                const profileBtn = document.querySelector('.profile-btn');
+                if (profileBtn) {
+                    profileBtn.innerHTML = `<span></span> ${data.user.username} <span>▼</span>`;
+                }
+                
+                if (typeof updateUI === 'function') updateUI();
+                if (typeof renderRigs === 'function') renderRigs();
+                if (typeof recalc === 'function') recalc();
+            }
+        } else {
+            console.error('Ошибка:', data.error);
             localStorage.removeItem('mining_token');
             window.location.href = '/login.html';
         }
-    } catch (err) {
-        console.error('Auth error:', err);
-        localStorage.removeItem('mining_token');
+    })
+    .catch(err => {
+        console.error('Ошибка запроса:', err);
         window.location.href = '/login.html';
-    }
-})();
+    });
+} else {
+    console.log('Нет токена, редирект на логин');
+    window.location.href = '/login.html';
+}
 </script>
-</body>
+
 </html>
