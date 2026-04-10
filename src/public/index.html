@@ -344,7 +344,7 @@ if (!token) {
     </div>
     <div class="right-control-panel">
         <div class="profile-section">
-            <div class="profile-btn" id="profileBtn"><span></span> MINER_747 <span>▼</span></div>
+            <div class="profile-btn" id="profileBtn"><span></span> <span id="profileUsername">MINER_747</span> <span>▼</span></div>
             <div class="profile-dropdown" id="profileDropdown">
                 <div class="dropdown-item" data-action="stats"><span class="emoji">📊</span> Моя статистика</div>
 <div class="dropdown-item" data-action="achievements"><span class="emoji">🏆</span> Достижения</div>
@@ -5244,23 +5244,22 @@ if (localStorage.getItem('mining_token')) {
     .then(res => res.json())
     .then(data => {
         if (data.success && window.player) {
-            player.balance = data.user.balance;
-            player.chips = data.user.chips;
-            player.basePower = data.user.base_power;
-            player.username = data.user.username;
-            
-            const profileBtn = document.querySelector('.profile-btn');
-            if (profileBtn) {
-                profileBtn.innerHTML = `<span></span> ${data.user.username} <span>▼</span>`;
-            }
-            
-            if (typeof updateUI === 'function') updateUI();
-            if (typeof renderRigs === 'function') renderRigs();
-            if (typeof recalc === 'function') recalc();
-        } else {
-            localStorage.removeItem('mining_token');
-            window.location.href = '/login.html';
-        }
+    player.username = data.user.username;
+    player.balance = data.user.balance;
+    player.chips = data.user.chips;
+    player.basePower = data.user.base_power;
+    
+    // Обновляем имя в профиле
+    const profileUsernameSpan = document.getElementById('profileUsername');
+    if (profileUsernameSpan) {
+        profileUsernameSpan.innerText = data.user.username;
+    }
+    
+    // Обновляем интерфейс
+    if (typeof updateUI === 'function') updateUI();
+    if (typeof renderRigs === 'function') renderRigs();
+    if (typeof recalc === 'function') recalc();
+}
     })
     .catch(() => {
         window.location.href = '/login.html';
