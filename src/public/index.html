@@ -5249,15 +5249,11 @@ if (localStorage.getItem('mining_token')) {
             player.chips = data.user.chips;
             player.basePower = data.user.base_power;
             
-            // ОТЛАДКА
-            console.log('=== НАЧАЛО ОБНОВЛЕНИЯ ===');
-            console.log('data.user.username:', data.user.username);
-            const testSpan = document.getElementById('profileUsername');
-            console.log('Найден ли span?', testSpan);
-            if (testSpan) {
-                console.log('Текущий текст span:', testSpan.innerText);
-                testSpan.innerText = data.user.username;
-                console.log('Новый текст span:', testSpan.innerText);
+            // Принудительное обновление имени
+            const profileSpan = document.getElementById('profileUsername');
+            if (profileSpan) {
+                profileSpan.innerText = data.user.username;
+                console.log('✅ Имя обновлено на:', profileSpan.innerText);
             }
             
             if (typeof updateUI === 'function') updateUI();
