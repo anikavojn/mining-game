@@ -197,6 +197,12 @@
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
         const msgDiv = document.getElementById('message');
+
+        if (data.success) {
+    localStorage.setItem('mining_token', data.token);
+    // Редирект на игру
+    window.location.href = '/index.html';
+}
         
         if (!username || !password) {
             msgDiv.innerHTML = '<div class="message error">❌ ЗАПОЛНИТЕ ВСЕ ПОЛЯ</div>';
@@ -231,6 +237,12 @@
         const email = document.getElementById('regEmail').value.trim();
         const password = document.getElementById('regPassword').value;
         const msgDiv = document.getElementById('message');
+
+        if (data.success) {
+    localStorage.setItem('mining_token', data.token);
+    // Редирект на игру
+    window.location.href = '/index.html';
+}
         
         if (!username || !email || !password) {
             msgDiv.innerHTML = '<div class="message error">❌ ЗАПОЛНИТЕ ВСЕ ПОЛЯ</div>';

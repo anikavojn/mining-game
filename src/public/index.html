@@ -47,6 +47,13 @@
     }
 })();
 </script>
+<script>
+// Просто проверяем токен при загрузке игры
+const token = localStorage.getItem('mining_token');
+if (!token) {
+    window.location.href = '/login.html';
+}
+</script>
     <meta charset="UTF-8">
     <title>Mining Simulator 747 — Hardcore Edition</title>
     <style>
