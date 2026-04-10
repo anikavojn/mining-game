@@ -238,12 +238,6 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
 
 // ========== АДМИН МАРШРУТЫ ==========
 
-// Middleware для проверки админа
-const isAdmin = (req, res, next) => {
-    if (req.role !== 'admin') return res.status(403).json({ error: 'Доступ запрещён' });
-    next();
-};
-
 // Получить всех игроков
 app.get('/api/admin/players', async (req, res) => {
     try {
@@ -271,7 +265,42 @@ app.put('/api/admin/players/:id', async (req, res) => {
             .select()
             .single();
         
+        if (error) throw error;
         res.json({ success: true, user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Бан игрока
+app.post('/api/admin/players/:id/ban', async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ is_banned: true })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        res.json({ success: true, message: `Игрок ${user.username} забанен` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Разбан игрока
+app.post('/api/admin/players/:id/unban', async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ is_banned: false })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        res.json({ success: true, message: `Игрок ${user.username} разбанен` });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
