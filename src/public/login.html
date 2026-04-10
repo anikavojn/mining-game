@@ -194,83 +194,75 @@
     }
     
     async function doLogin() {
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        const msgDiv = document.getElementById('message');
-
-        if (data.success) {
-    localStorage.setItem('mining_token', data.token);
-    // Редирект на игру
-    window.location.href = '/index.html';
-}
-        
-        if (!username || !password) {
-            msgDiv.innerHTML = '<div class="message error">❌ ЗАПОЛНИТЕ ВСЕ ПОЛЯ</div>';
-            return;
-        }
-        
-        msgDiv.innerHTML = '<div class="message success">⏳ ПОДКЛЮЧЕНИЕ...</div>';
-        
-        try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (data.success) {
-                localStorage.setItem('mining_token', data.token);
-                msgDiv.innerHTML = '<div class="message success">✅ ДОБРО ПОЖАЛОВАТЬ! ЗАГРУЗКА...</div>';
-                setTimeout(() => {
-                    window.location.href = '/index.html';
-                }, 800);
-            } else {
-                msgDiv.innerHTML = '<div class="message error">❌ ' + data.error + '</div>';
-            }
-        } catch(err) {
-            msgDiv.innerHTML = '<div class="message error">❌ ОШИБКА СОЕДИНЕНИЯ С СЕРВЕРОМ</div>';
-        }
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const msgDiv = document.getElementById('message');
+    
+    if (!username || !password) {
+        msgDiv.innerHTML = '<div class="message error">❌ ЗАПОЛНИТЕ ВСЕ ПОЛЯ</div>';
+        return;
     }
     
-    async function doRegister() {
-        const username = document.getElementById('regUsername').value.trim();
-        const email = document.getElementById('regEmail').value.trim();
-        const password = document.getElementById('regPassword').value;
-        const msgDiv = document.getElementById('message');
-
-        if (data.success) {
-    localStorage.setItem('mining_token', data.token);
-    // Редирект на игру
-    window.location.href = '/index.html';
-}
+    msgDiv.innerHTML = '<div class="message success">⏳ ПОДКЛЮЧЕНИЕ...</div>';
+    
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const result = await response.json();
         
-        if (!username || !email || !password) {
-            msgDiv.innerHTML = '<div class="message error">❌ ЗАПОЛНИТЕ ВСЕ ПОЛЯ</div>';
-            return;
+        if (result.success) {
+            localStorage.setItem('mining_token', result.token);
+            msgDiv.innerHTML = '<div class="message success">✅ ДОБРО ПОЖАЛОВАТЬ! ЗАГРУЗКА...</div>';
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 800);
+        } else {
+            msgDiv.innerHTML = '<div class="message error">❌ ' + result.error + '</div>';
         }
-        
-        msgDiv.innerHTML = '<div class="message success">⏳ ПОДКЛЮЧЕНИЕ...</div>';
-        
-        try {
-            const res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, email, password })
-            });
-            const data = await res.json();
-            if (data.success) {
-                localStorage.setItem('mining_token', data.token);
-                msgDiv.innerHTML = '<div class="message success">✅ АККАУНТ СОЗДАН! ЗАГРУЗКА...</div>';
-                setTimeout(() => {
-                    window.location.href = '/index.html';
-                }, 800);
-            } else {
-                msgDiv.innerHTML = '<div class="message error">❌ ' + data.error + '</div>';
-            }
-        } catch(err) {
-            msgDiv.innerHTML = '<div class="message error">❌ ОШИБКА СОЕДИНЕНИЯ С СЕРВЕРОМ</div>';
-        }
+    } catch(err) {
+        console.error('Ошибка:', err);
+        msgDiv.innerHTML = '<div class="message error">❌ ОШИБКА СОЕДИНЕНИЯ С СЕРВЕРОМ</div>';
     }
+}
+    
+    async function doRegister() {
+    const username = document.getElementById('regUsername').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const msgDiv = document.getElementById('message');
+    
+    if (!username || !email || !password) {
+        msgDiv.innerHTML = '<div class="message error">❌ ЗАПОЛНИТЕ ВСЕ ПОЛЯ</div>';
+        return;
+    }
+    
+    msgDiv.innerHTML = '<div class="message success">⏳ ПОДКЛЮЧЕНИЕ...</div>';
+    
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            localStorage.setItem('mining_token', result.token);
+            msgDiv.innerHTML = '<div class="message success">✅ АККАУНТ СОЗДАН! ЗАГРУЗКА...</div>';
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 800);
+        } else {
+            msgDiv.innerHTML = '<div class="message error">❌ ' + result.error + '</div>';
+        }
+    } catch(err) {
+        console.error('Ошибка:', err);
+        msgDiv.innerHTML = '<div class="message error">❌ ОШИБКА СОЕДИНЕНИЯ С СЕРВЕРОМ</div>';
+    }
+}
     
     if (localStorage.getItem('mining_token')) {
         window.location.href = '/index.html';
