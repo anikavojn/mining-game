@@ -741,22 +741,13 @@
 
 <script>
     // ========== ДАННЫЕ ==========
-    let players = [
-        { id: 1001, name: "MINER_747", hash: 2.3, balance: 0.00000000, chips: 15, defense: 30, level: 1, banned: false },
-        { id: 1002, name: "CRYPTO_KING", hash: 45.2, balance: 12.5, chips: 89, defense: 45, level: 5, banned: false },
-        { id: 1003, name: "BTC_WARRIOR", hash: 35.8, balance: 8.23, chips: 67, defense: 38, level: 4, banned: false },
-        { id: 1004, name: "GHOST_MINER", hash: 22.1, balance: 3.45, chips: 42, defense: 52, level: 3, banned: false },
-        { id: 1005, name: "NIGHT_HACKER", hash: 18.7, balance: 2.98, chips: 31, defense: 25, level: 2, banned: false },
-        { id: 1006, name: "SOLO_MINER", hash: 12.4, balance: 1.23, chips: 28, defense: 35, level: 2, banned: false },
-        { id: 1007, name: "WHALE_CRYPTO", hash: 128.5, balance: 45.67, chips: 234, defense: 68, level: 8, banned: false },
-        { id: 1008, name: "NEO_MINER", hash: 8.9, balance: 0.87, chips: 19, defense: 28, level: 1, banned: false }
-    ];
-    let bannedList = [];
-    let backups = [];
-    let activeGlobalEvent = null;
-    let eventTimer = null;
-    let eventCount = 0;
-    let editPlayerId = null;
+let players = [];
+let bannedList = [];
+let backups = [];
+let activeGlobalEvent = null;
+let eventTimer = null;
+let eventCount = 0;
+let editPlayerId = null;
 
     // ========== ЧАТ ==========
     let chatMessages = [
@@ -1050,15 +1041,13 @@
     }
 
     function init() {
-        loadBackups();
-        initTabs();
-        bindEvents();
-        renderPlayers();
-        renderBans();
-        renderChat();
-        updateStatsUI();
-        addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
-    }
+    loadBackups();
+    initTabs();
+    bindEvents();
+    renderChat();
+    loadPlayersFromServer();  // Загружаем игроков с сервера
+    addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
+}
 
     window.openEdit = openEdit;
     window.banPlayer = banPlayer;
