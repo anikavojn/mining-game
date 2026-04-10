@@ -245,7 +245,7 @@ const isAdmin = (req, res, next) => {
 };
 
 // Получить всех игроков
-app.get('/api/admin/players', auth, isAdmin, async (req, res) => {
+app.get('/api/admin/players', async (req, res) => {
     try {
         const { data: players, error } = await supabase
             .from('users')
@@ -260,7 +260,7 @@ app.get('/api/admin/players', auth, isAdmin, async (req, res) => {
 });
 
 // Редактировать игрока
-app.put('/api/admin/players/:id', auth, isAdmin, async (req, res) => {
+app.put('/api/admin/players/:id', async (req, res) => {
     try {
         const { balance, chips, base_power, defense, is_banned } = req.body;
         
@@ -278,7 +278,7 @@ app.put('/api/admin/players/:id', auth, isAdmin, async (req, res) => {
 });
 
 // Бан игрока
-app.post('/api/admin/players/:id/ban', auth, isAdmin, async (req, res) => {
+app.post('/api/admin/players/:id/ban', async (req, res) => {
     try {
         const { data: user, error } = await supabase
             .from('users')
@@ -294,7 +294,7 @@ app.post('/api/admin/players/:id/ban', auth, isAdmin, async (req, res) => {
 });
 
 // Разбан игрока
-app.post('/api/admin/players/:id/unban', auth, isAdmin, async (req, res) => {
+app.post('/api/admin/players/:id/unban', async (req, res) => {
     try {
         const { data: user, error } = await supabase
             .from('users')
