@@ -212,7 +212,7 @@
             body: JSON.stringify({ username, password })
         });
         const result = await response.json();
-        
+        console.log('Ответ сервера:', result);
         if (result.success) {
             localStorage.setItem('mining_token', result.token);
             msgDiv.innerHTML = '<div class="message success">✅ ДОБРО ПОЖАЛОВАТЬ! ЗАГРУЗКА...</div>';
@@ -248,7 +248,7 @@
             body: JSON.stringify({ username, email, password })
         });
         const result = await response.json();
-        
+        console.log('Ответ сервера:', result);
         if (result.success) {
             localStorage.setItem('mining_token', result.token);
             msgDiv.innerHTML = '<div class="message success">✅ АККАУНТ СОЗДАН! ЗАГРУЗКА...</div>';
