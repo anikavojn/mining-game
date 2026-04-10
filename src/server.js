@@ -236,6 +236,79 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
     }
 });
 
+// ========== АДМИН МАРШРУТЫ ==========
+
+// Middleware для проверки админа
+const isAdmin = (req, res, next) => {
+    if (req.role !== 'admin') return res.status(403).json({ error: 'Доступ запрещён' });
+    next();
+};
+
+// Получить всех игроков
+app.get('/api/admin/players', auth, isAdmin, async (req, res) => {
+    try {
+        const { data: players, error } = await supabase
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        res.json({ success: true, players });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Редактировать игрока
+app.put('/api/admin/players/:id', auth, isAdmin, async (req, res) => {
+    try {
+        const { balance, chips, base_power, defense, is_banned } = req.body;
+        
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ balance, chips, base_power, defense, is_banned })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        res.json({ success: true, user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Бан игрока
+app.post('/api/admin/players/:id/ban', auth, isAdmin, async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ is_banned: true })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        res.json({ success: true, message: `Игрок ${user.username} забанен` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Разбан игрока
+app.post('/api/admin/players/:id/unban', auth, isAdmin, async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ is_banned: false })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        res.json({ success: true, message: `Игрок ${user.username} разбанен` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ========== ЗАПУСК ==========
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
