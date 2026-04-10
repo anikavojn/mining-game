@@ -4,12 +4,11 @@
     <script>
 // ПРОВЕРКА АВТОРИЗАЦИИ ПЕРЕД ЗАГРУЗКОЙ ИГРЫ
 (async function() {
-    const token = localStorage.getItem('mining_token');
-    
-    if (!token) {
-        window.location.href = '/login.html';
-        return;
-    }
+    //const token = localStorage.getItem('mining_token');
+    //if (!token) {
+    //    window.location.href = '/login.html';
+    //    return;
+    //}
     
     try {
         const res = await fetch('/api/game/profile', {
