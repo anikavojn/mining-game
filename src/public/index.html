@@ -5285,15 +5285,14 @@ async function loadUserProfile() {
         
         const data = await response.json();
         
-        if (data.success && window.player) {
-            // Обновляем данные игрока из БД
+        if (data.success && window.player) 
             player.username = data.user.username;
             player.balance = parseFloat(data.user.balance) || 0;
             player.chips = data.user.chips || 0;
             player.basePower = data.user.base_power || 2;  // ⚠️ base_power (с подчёркиванием)
             
-            // Обновляем UI
-            const profileSpan = document.getElementById('profileUsername');
+    
+            const profileSpan = document.querySelector('#profileBtn span:last-child');
             if (profileSpan) {
                 profileSpan.innerText = player.username;
                 console.log('✅ Имя пользователя установлено:', player.username);
