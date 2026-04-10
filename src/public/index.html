@@ -5254,6 +5254,16 @@ if (localStorage.getItem('mining_token')) {
             if (profileSpan) {
                 profileSpan.innerText = data.user.username;
                 console.log('✅ Имя обновлено на:', profileSpan.innerText);
+                console.log('✅ БЛОК АВТОРИЗАЦИИ ВЫПОЛНЯЕТСЯ');
+                console.log('👤 Пытаемся обновить имя на:', data.user.username);
+const span = document.getElementById('profileUsername');
+console.log('🔍 Найден span:', span);
+if (span) {
+    span.innerText = data.user.username;
+    console.log('✅ Имя обновлено на:', span.innerText);
+} else {
+    console.log('❌ Span НЕ НАЙДЕН');
+}
             }
             
             if (typeof updateUI === 'function') updateUI();
