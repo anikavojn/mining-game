@@ -252,9 +252,9 @@
         if (result.success) {
             localStorage.setItem('mining_token', result.token);
             msgDiv.innerHTML = '<div class="message success">✅ АККАУНТ СОЗДАН! ЗАГРУЗКА...</div>';
-            setTimeout(() => {
-                window.location.href = '/index.html';
-            }, 800);
+            //setTimeout(() => {
+            //    window.location.href = '/index.html';
+            //}, 800);
         } else {
             msgDiv.innerHTML = '<div class="message error">❌ ' + result.error + '</div>';
         }
