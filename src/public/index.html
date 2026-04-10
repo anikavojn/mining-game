@@ -5244,6 +5244,9 @@ if (localStorage.getItem('mining_token')) {
     .then(res => res.json())
     .then(data => {
         if (data.success && window.player) {
+    console.log('=== ЗАГРУЗКА ПРОФИЛЯ ===');
+console.log('data.user:', data.user);
+console.log('window.player существует?', !!window.player);        
     player.username = data.user.username;
     player.balance = data.user.balance;
     player.chips = data.user.chips;
