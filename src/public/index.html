@@ -5268,6 +5268,43 @@ function showWithdrawWindow() {
 }
 
 </script>
+<script>
+// ========== ПРОСТАЯ ЗАГРУЗКА ПРОФИЛЯ ==========
+(async function() {
+    const token = localStorage.getItem('mining_token');
+    if (!token) {
+        window.location.href = '/login.html';
+        return;
+    }
 
+    try {
+        const response = await fetch('/api/game/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        if (data.success && window.player) {
+            window.player.username = data.user.username;
+            window.player.balance = parseFloat(data.user.balance) || 0;
+            window.player.chips = data.user.chips || 0;
+            window.player.basePower = data.user.base_power || 2;
+            
+            const profileSpan = document.getElementById('profileUsername');
+            if (profileSpan) profileSpan.innerText = window.player.username;
+            
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderRigs === 'function') renderRigs();
+            if (typeof recalc === 'function') recalc();
+        } else {
+            localStorage.removeItem('mining_token');
+            window.location.href = '/login.html';
+        }
+    } catch (err) {
+        console.error('Auth error:', err);
+        localStorage.removeItem('mining_token');
+        window.location.href = '/login.html';
+    }
+})();
+</script>
 </body>
 </html>
