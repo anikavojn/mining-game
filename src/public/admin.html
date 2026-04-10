@@ -1074,7 +1074,7 @@
     init();
     // ========== ПОДКЛЮЧЕНИЕ К СЕРВЕРУ ==========
 let adminToken = localStorage.getItem('admin_token');
-const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+const API_URL = '';
 
 // Проверка авторизации админа
 async function checkAdminAuth() {
