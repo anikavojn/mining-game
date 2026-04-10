@@ -7,30 +7,42 @@
     const token = localStorage.getItem('mining_token');
     
     if (!token) {
-        // Перенаправляем на страницу входа
         window.location.href = '/login.html';
         return;
     }
     
-    // Проверяем, валиден ли токен
     try {
         const res = await fetch('/api/game/profile', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
-        if (!data.success) {
+        
+        if (data.success && window.player) {
+            // Обновляем все данные игрока
+            window.player.balance = parseFloat(data.user.balance) || 0;
+            window.player.chips = data.user.chips || 0;
+            window.player.basePower = data.user.base_power || 2;
+            window.player.username = data.user.username;
+            
+            // Обновляем интерфейс
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderRigs === 'function') renderRigs();
+            if (typeof recalc === 'function') recalc();
+            
+            // Обновляем отображение имени в профиле
+            const profileBtn = document.querySelector('.profile-btn');
+            if (profileBtn) {
+                profileBtn.innerHTML = `<span></span> ${data.user.username} <span>▼</span>`;
+            }
+            
+            console.log('Загружен игрок:', data.user.username);
+        } else {
             localStorage.removeItem('mining_token');
             window.location.href = '/login.html';
-            return;
-        }
-        // Если всё ок, загружаем данные игрока в игру
-        if (window.player) {
-            window.player.balance = data.user.balance;
-            window.player.chips = data.user.chips;
-            window.player.basePower = data.user.base_power;
-            if (typeof updateUI === 'function') updateUI();
         }
     } catch(e) {
+        console.error('Ошибка загрузки профиля:', e);
+        localStorage.removeItem('mining_token');
         window.location.href = '/login.html';
     }
 })();
