@@ -1,51 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <script>
-// ПРОВЕРКА АВТОРИЗАЦИИ ПЕРЕД ЗАГРУЗКОЙ ИГРЫ
-(async function() {
-    //const token = localStorage.getItem('mining_token');
-    //if (!token) {
-    //    window.location.href = '/login.html';
-    //    return;
-    //}
     
-    try {
-        const res = await fetch('/api/game/profile', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (data.success && window.player) {
-            // Обновляем все данные игрока
-            window.player.balance = parseFloat(data.user.balance) || 0;
-            window.player.chips = data.user.chips || 0;
-            window.player.basePower = data.user.base_power || 2;
-            window.player.username = data.user.username;
-            
-            // Обновляем интерфейс
-            if (typeof updateUI === 'function') updateUI();
-            if (typeof renderRigs === 'function') renderRigs();
-            if (typeof recalc === 'function') recalc();
-            
-            // Обновляем отображение имени в профиле
-            const profileBtn = document.querySelector('.profile-btn');
-            if (profileBtn) {
-                profileBtn.innerHTML = `<span></span> ${data.user.username} <span>▼</span>`;
-            }
-            
-            console.log('Загружен игрок:', data.user.username);
-        } else {
-            localStorage.removeItem('mining_token');
-            window.location.href = '/login.html';
-        }
-    } catch(e) {
-        console.error('Ошибка загрузки профиля:', e);
-        localStorage.removeItem('mining_token');
-        window.location.href = '/login.html';
-    }
-})();
-</script>
 <script>
 // Просто проверяем токен при загрузке игры
 const token = localStorage.getItem('mining_token');
@@ -5279,6 +5235,49 @@ function showWithdrawWindow() {
 
 </script>
 
+// ========== АВТОРИЗАЦИЯ И ЗАГРУЗКА ПРОФИЛЯ ==========
+const token = localStorage.getItem('mining_token');
+
+if (token) {
+    // Загружаем данные игрока с сервера
+    fetch('/api/game/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && window.player) {
+            // Обновляем данные игрока
+            player.balance = data.user.balance;
+            player.chips = data.user.chips;
+            player.basePower = data.user.base_power;
+            player.username = data.user.username;
+            
+            // Обновляем имя в профиле
+            const profileBtn = document.querySelector('.profile-btn');
+            if (profileBtn) {
+                profileBtn.innerHTML = `<span></span> ${data.user.username} <span>▼</span>`;
+            }
+            
+            // Обновляем интерфейс
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderRigs === 'function') renderRigs();
+            if (typeof recalc === 'function') recalc();
+            
+            console.log('✅ Загружен игрок:', data.user.username);
+        } else {
+            // Токен невалидный — удаляем и отправляем на логин
+            localStorage.removeItem('mining_token');
+            window.location.href = '/login.html';
+        }
+    })
+    .catch(err => {
+        console.error('Ошибка загрузки профиля:', err);
+        window.location.href = '/login.html';
+    });
+} else {
+    // Нет токена — отправляем на логин
+    window.location.href = '/login.html';
+}
 
 </body>
 </html>
