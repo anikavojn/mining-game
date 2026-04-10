@@ -5302,6 +5302,15 @@ if (token) {
                 window.player.balance = data.user.balance;
                 window.player.chips = data.user.chips;
                 window.player.basePower = data.user.base_power;
+
+                setTimeout(() => {
+    const span = document.getElementById('profileUsername');
+    if (span && data.user.username) {
+        span.innerText = data.user.username;
+        console.log('✅ Имя обновлено через setTimeout:', span.innerText);
+    }
+}, 500);
+
                 window.player.username = data.user.username;
                 
                 // Обновляем имя в профиле
