@@ -5244,25 +5244,29 @@ if (localStorage.getItem('mining_token')) {
     .then(res => res.json())
     .then(data => {
         if (data.success && window.player) {
-    console.log('=== ЗАГРУЗКА ПРОФИЛЯ ===');
-console.log('data.user:', data.user);
-console.log('window.player существует?', !!window.player);        
-    player.username = data.user.username;
-    player.balance = data.user.balance;
-    player.chips = data.user.chips;
-    player.basePower = data.user.base_power;
-    
-    // Обновляем имя в профиле
-    const profileUsernameSpan = document.getElementById('profileUsername');
-    if (profileUsernameSpan) {
-        profileUsernameSpan.innerText = data.user.username;
-    }
-    
-    // Обновляем интерфейс
-    if (typeof updateUI === 'function') updateUI();
-    if (typeof renderRigs === 'function') renderRigs();
-    if (typeof recalc === 'function') recalc();
-}
+            player.username = data.user.username;
+            player.balance = data.user.balance;
+            player.chips = data.user.chips;
+            player.basePower = data.user.base_power;
+            
+            // Принудительное обновление имени в профиле
+            setTimeout(() => {
+                const profileSpan = document.getElementById('profileUsername');
+                if (profileSpan) {
+                    profileSpan.innerText = data.user.username;
+                    console.log('✅ Обновлено имя на:', data.user.username);
+                } else {
+                    console.log('❌ Элемент profileUsername не найден');
+                }
+            }, 500);
+            
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderRigs === 'function') renderRigs();
+            if (typeof recalc === 'function') recalc();
+        } else {
+            localStorage.removeItem('mining_token');
+            window.location.href = '/login.html';
+        }
     })
     .catch(() => {
         window.location.href = '/login.html';
