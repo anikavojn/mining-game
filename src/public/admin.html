@@ -1072,18 +1072,7 @@
     };
 
     init();
-    // ========== ПОДКЛЮЧЕНИЕ К СЕРВЕРУ ==========
-let adminToken = localStorage.getItem('admin_token');
-const API_URL = '';
-
-// Проверка авторизации админа
-async function checkAdminAuth() {
-    if (!adminToken) {
-        showAdminLogin();
-        return false;
-    }
-    return true;
-}
+    
 
 function showAdminLogin() {
     const loginHtml = `
@@ -1214,6 +1203,10 @@ async function initAdminPanel() {
 }
 
 checkAdminAuth();
+</script>
+<script>
+// Отключаем проверку авторизации — админка работает локально
+console.log('Админ-панель работает в офлайн-режиме');
 </script>
 </body>
 </html>
