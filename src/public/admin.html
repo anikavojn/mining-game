@@ -814,22 +814,27 @@ let editPlayerId = null;
     }
 
     function renderPlayers() {
-        const container = document.getElementById('playersList');
-        const active = players.filter(p => !p.banned);
-        if (!active.length) { container.innerHTML = '<div style="padding: 30px; text-align:center; color:#7a9abe;">Нет активных игроков</div>'; return; }
-        container.innerHTML = active.map(p => `
-            <div class="player-card">
-                <div>
-                    <div class="player-name">${p.name} <span style="font-size:10px; color:#ffaa66;">Lv.${p.level}</span></div>
-                    <div class="player-detail">ID: ${p.id} | ${p.hash} TH/s | ${p.balance.toFixed(8)} SOL | 🔧${p.chips} | 🛡️${p.defense}%</div>
-                </div>
-                <div class="player-actions">
-                    <button class="btn btn-sm" onclick="openEdit(${p.id})">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="banPlayer(${p.id})">🚫</button>
-                </div>
-            </div>
-        `).join('');
+    const container = document.getElementById('playersList');
+    const active = players.filter(p => !p.is_banned);
+    
+    if (!active.length) { 
+        container.innerHTML = '<div style="padding: 30px; text-align:center; color:#7a9abe;">Нет активных игроков</div>'; 
+        return; 
     }
+    
+    container.innerHTML = active.map(p => `
+        <div class="player-card">
+            <div>
+                <div class="player-name">${p.username}</div>
+                <div class="player-detail">ID: ${p.id} | ${p.base_power} TH/s | ${parseFloat(p.balance).toFixed(8)} SOL | 🔧${p.chips}</div>
+            </div>
+            <div class="player-actions">
+                <button class="btn btn-sm" onclick="openEdit(${p.id})">✏️</button>
+                <button class="btn btn-sm btn-danger" onclick="banPlayer(${p.id})">🚫</button>
+            </div>
+        </div>
+    `).join('');
+}
 
     function renderBans() {
         const container = document.getElementById('banList');
@@ -1109,18 +1114,22 @@ function showAdminLogin() {
 // Загрузка игроков с сервера
 async function loadPlayersFromServer() {
     try {
-        const res = await fetch(`${API_URL}/admin/players`, {
-            headers: { 'Authorization': `Bearer ${adminToken}` }
-        });
+        const res = await fetch('/api/admin/players');
         const data = await res.json();
+        console.log('Ответ сервера:', data);
+        
         if (data.success) {
             players = data.players;
             renderPlayers();
             renderBans();
             updateStatsUI();
+            addLog(`✅ Загружено ${players.length} игроков`, 'success');
+        } else {
+            addLog(`❌ Ошибка: ${data.error}`, 'error');
         }
     } catch (err) {
         console.error('Ошибка загрузки игроков:', err);
+        addLog(`❌ Ошибка соединения: ${err.message}`, 'error');
     }
 }
 
