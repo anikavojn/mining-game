@@ -35,6 +35,15 @@ const io = socketIo(server, {
 // ========== ОБРАБОТЧИКИ SOCKET.IO ==========
 io.on('connection', (socket) => {
     console.log('🔌 Пользователь подключился:', socket.id);
+        // Сообщения от админа
+    socket.on('admin_message', (data) => {
+        console.log('👑 АДМИН:', data.text);
+        io.emit('admin_message', {
+            username: data.username || '👑 АДМИН',
+            text: data.text,
+            timestamp: new Date().toISOString()
+        });
+    });
     
     // Запрос истории чата
     socket.on('request_history', () => {

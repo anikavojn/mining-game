@@ -3578,6 +3578,17 @@ if (window.socket) {
             if (chatMsgs.length > 200) chatMsgs.shift();
             updateMessages();
         });
+        // Получение сообщений от админа
+window.socket.on('admin_message', (data) => {
+    chatMsgs.push({ 
+        name: data.username || "👑 АДМИН", 
+        text: data.text, 
+        type: "admin" 
+    });
+    if (chatMsgs.length > 200) chatMsgs.shift();
+    updateMessages();
+    toast(`📢 ${data.username || 'Админ'}: ${data.text}`);
+});
     }
     
     // Запрашиваем историю при открытии окна

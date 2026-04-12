@@ -1140,13 +1140,37 @@
 
     // ========== ОТПРАВКА СООБЩЕНИЙ ==========
     function sendAdminMessage() {
-        const input = document.getElementById('chatInput');
-        const text = input?.value.trim();
-        if (!text) return;
+    const input = document.getElementById('chatInput');
+    const text = input?.value.trim();
+    if (!text) return;
+    
+    // Отправляем сообщение через сокет всем игрокам
+    if (window.socket && window.socket.connected) {
+        window.socket.emit('admin_message', {
+            text: text,
+            username: '👑 АДМИН'
+        });
         addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
-        showToast(`📨 Сообщение отправлено`);
-        if (input) input.value = '';
+        showToast(`📨 Сообщение отправлено игрокам`);
+        input.value = '';
+    } else {
+        // Fallback: через API
+        fetch('/api/admin/broadcast', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`
+            },
+            body: JSON.stringify({ message: text })
+        }).then(() => {
+            addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
+            showToast(`📨 Сообщение отправлено`);
+            input.value = '';
+        }).catch(err => {
+            addLog(`❌ Ошибка отправки: ${err.message}`, 'error');
+        });
     }
+}
 
     // ========== ЧАТ ==========
     let chatMessages = [
