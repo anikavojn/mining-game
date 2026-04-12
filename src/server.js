@@ -4,6 +4,12 @@ const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const http = require('http');
+const socketIo = require('socket.io');
+
+// Хранилище истории чата (последние 50 сообщений)
+let chatHistory = [];
+const MAX_HISTORY = 10000;
 
 const app = express();
 
@@ -15,16 +21,62 @@ const supabase = createClient(
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(__dirname + '/public'));
 
 console.log('✅ Supabase подключён:', process.env.SUPABASE_URL);
+
+// ========== СОЗДАЁМ HTTP СЕРВЕР И SOCKET.IO ==========
+const server = http.createServer(app);
+const io = socketIo(server, {
+    cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+// ========== ОБРАБОТЧИКИ SOCKET.IO ==========
+io.on('connection', (socket) => {
+    console.log('🔌 Пользователь подключился:', socket.id);
+    
+    // Запрос истории чата
+    socket.on('request_history', () => {
+        socket.emit('chat_history', chatHistory);
+    });
+    
+    socket.on('user_online', (username) => {
+        socket.username = username;
+        console.log('👤 Пользователь в сети:', username);
+        const onlineUsers = [];
+        for (let [id, s] of io.sockets.sockets) {
+            if (s.username) onlineUsers.push(s.username);
+        }
+        io.emit('online_users', onlineUsers);
+    });
+    
+    socket.on('chat_message', (data) => {
+        if (!data.timestamp) data.timestamp = new Date().toISOString();
+        chatHistory.push(data);
+        if (chatHistory.length > MAX_HISTORY) chatHistory.shift();
+        
+        console.log('💬', data.username + ':', data.message);
+        io.emit('chat_message', data);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('🔌 Пользователь отключился:', socket.id);
+        const onlineUsers = [];
+        for (let [id, s] of io.sockets.sockets) {
+            if (s.username) onlineUsers.push(s.username);
+        }
+        io.emit('online_users', onlineUsers);
+    });
+});
+
+// ========== ВСЕ ТВОИ СУЩЕСТВУЮЩИЕ МАРШРУТЫ (REST API) ==========
+// (они остаются без изменений)
 
 // ========== РЕГИСТРАЦИЯ ==========
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
         
-        // Проверяем, существует ли пользователь
         const { data: existing } = await supabase
             .from('users')
             .select('username')
@@ -306,41 +358,10 @@ app.post('/api/admin/players/:id/unban', async (req, res) => {
     }
 });
 
-// Бан игрока
-app.post('/api/admin/players/:id/ban', async (req, res) => {
-    try {
-        const { data: user, error } = await supabase
-            .from('users')
-            .update({ is_banned: true })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-        
-        res.json({ success: true, message: `Игрок ${user.username} забанен` });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Разбан игрока
-app.post('/api/admin/players/:id/unban', async (req, res) => {
-    try {
-        const { data: user, error } = await supabase
-            .from('users')
-            .update({ is_banned: false })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-        
-        res.json({ success: true, message: `Игрок ${user.username} разбанен` });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// ========== ЗАПУСК ==========
+// ========== ЗАПУСК (используем server.listen вместо app.listen) ==========
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`\n✅ Сервер запущен на http://localhost:${PORT}`);
-    console.log(`📡 Supabase: ${process.env.SUPABASE_URL}\n`);
+    console.log(`📡 Supabase: ${process.env.SUPABASE_URL}`);
+    console.log(`🔌 Socket.IO чат активен\n`);
 });

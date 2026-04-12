@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>    
 <script>
 // Просто проверяем токен при загрузке игры
 const token = localStorage.getItem('mining_token');
@@ -3153,45 +3153,115 @@ function renderLog(cont) {
     });
 }
 
-let chatMsgs = [{ name: "System", text: "Добро пожаловать в чат!", type: "system" }];
-let botInterval = null;
+let chatMsgs = [];
 
-function startBotMessages(cont, updateFn) {
-    if (botInterval) clearInterval(botInterval);
-    botInterval = setInterval(() => {
-        let randomBot = botNames[Math.floor(Math.random() * botNames.length)];
-        let randomMsg = botMessages[Math.floor(Math.random() * botMessages.length)];
-        chatMsgs.push({ name: randomBot, text: randomMsg, type: "bot" });
-        if (chatMsgs.length > 100) chatMsgs.shift();
-        if (updateFn) updateFn(cont);
-    }, 10000 + Math.random() * 10000);
+// ========== ПОДКЛЮЧЕНИЕ К CHAT SERVER ==========
+let currentUsername = null;
+const savedUserForChat = localStorage.getItem('mining_user');
+if (savedUserForChat) {
+    try {
+        const user = JSON.parse(savedUserForChat);
+        currentUsername = user.username;
+    } catch(e) {}
+}
+
+// Подключаем Socket.IO
+if (!window.socket) {
+    window.socket = io();
+    window.socket.on('connect', () => {
+        console.log('✅ Чат подключён к серверу');
+        if (currentUsername) {
+            window.socket.emit('user_online', currentUsername);
+        }
+    });
 }
 
 function renderChat(cont, wid) {
+    // Очищаем содержимое окна
+    cont.innerHTML = `
+        <div class="chat-content" style="display: flex; flex-direction: column; height: 100%;">
+            <div class="chat-messages-win" style="flex: 1; overflow-y: auto; min-height: 300px; background: #0a1118; border-radius: 8px; padding: 8px; margin-bottom: 8px;"></div>
+            <div class="chat-input-win" style="display: flex; gap: 5px;">
+                <input id="chatIn_${wid}" placeholder="Введите сообщение..." style="flex: 1; background: #1d3952; border: 1px solid #3b7aad; color: white; padding: 8px; border-radius: 20px; outline: none;">
+                <button id="chatSend_${wid}" style="background: #3173a5; border: none; color: white; border-radius: 20px; padding: 8px 18px; cursor: pointer;">➤</button>
+            </div>
+        </div>
+    `;
+    
+    const messagesDiv = cont.querySelector('.chat-messages-win');
+    const input = cont.querySelector(`#chatIn_${wid}`);
+    const sendBtn = cont.querySelector(`#chatSend_${wid}`);
+    
+    // Функция обновления сообщений
     function updateMessages() {
-        let msgsDiv = cont.querySelector('.chat-messages-win');
-        if (msgsDiv) {
-            msgsDiv.innerHTML = chatMsgs.map(m => `<div><span class="name ${m.type}">${m.name}:</span> ${m.text}</div>`).join('');
-            msgsDiv.scrollTop = msgsDiv.scrollHeight;
+        if (!messagesDiv) return;
+        messagesDiv.innerHTML = chatMsgs.map(msg => 
+            `<div style="padding: 4px 0; border-bottom: 1px solid #2a4a6a;">
+                <span style="color: #ffaa66; font-weight: bold;">${escapeHtml(msg.name)}:</span> 
+                <span style="color: #c6e2ff;">${escapeHtml(msg.text)}</span>
+            </div>`
+        ).join('');
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    // Отправка сообщения
+    function sendMessage() {
+        const message = input.value.trim();
+        if (message && window.socket && currentUsername) {
+            window.socket.emit('chat_message', {
+                username: currentUsername,
+                message: message,
+                timestamp: new Date().toISOString()
+            });
+            input.value = '';
         }
     }
     
-    cont.innerHTML = `<div class="chat-content"><div class="chat-messages-win" style="height:300px; overflow-y:auto;"></div><div class="chat-input-win"><input id="chatIn_${wid}" placeholder="Введите сообщение..."><button id="chatSend_${wid}">➤ ОТПРАВИТЬ</button></div></div>`;
-    updateMessages();
+    sendBtn.onclick = sendMessage;
+    input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
     
-    let inp = cont.querySelector(`#chatIn_${wid}`), btn = cont.querySelector(`#chatSend_${wid}`);
-    btn.onclick = () => {
-        if (inp.value.trim()) {
-            chatMsgs.push({ name: "You", text: inp.value, type: "user" });
-            if (chatMsgs.length > 100) chatMsgs.shift();
+    // Очищаем массив сообщений
+    chatMsgs = [];
+    
+    // Настройка сокет-обработчиков (удаляем старые)
+    if (window.socket) {
+        // Удаляем все старые обработчики
+        window.socket.off('chat_history');
+        window.socket.off('chat_message');
+        
+        // Обработчик истории (при открытии окна)
+        window.socket.on('chat_history', (history) => {
+            console.log('📜 История чата:', history.length, 'сообщений');
+            chatMsgs = [];
+            history.forEach(msg => {
+                chatMsgs.push({ name: msg.username, text: msg.message });
+            });
             updateMessages();
-            inp.value = '';
-            addLog(`💬 Вы: ${inp.value}`, 'info');
-        }
-    };
-    inp.onkeypress = (e) => { if (e.key === 'Enter') btn.click(); };
+        });
+        
+        // Обработчик новых сообщений
+        window.socket.on('chat_message', (data) => {
+            chatMsgs.push({ name: data.username, text: data.message });
+            if (chatMsgs.length > 200) chatMsgs.shift();
+            updateMessages();
+        });
+    }
     
-    if (!botInterval) startBotMessages(cont, updateMessages);
+    // Запрашиваем историю при открытии окна
+    if (window.socket && window.socket.connected) {
+        window.socket.emit('request_history');
+    }
+    
+    updateMessages();
 }
 
 function renderPvp(cont) {
