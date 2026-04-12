@@ -211,16 +211,18 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
         });
-        const result = await response.json();
-        console.log('Ответ сервера:', result);
-        if (result.success) {
-            localStorage.setItem('mining_token', result.token);
+        const data = await response.json();  // ← переименовал result в data
+        console.log('Ответ сервера:', data);
+        
+        if (data.success) {
+            localStorage.setItem('mining_token', data.token);
+            localStorage.setItem('mining_user', JSON.stringify(data.user));
             msgDiv.innerHTML = '<div class="message success">✅ ДОБРО ПОЖАЛОВАТЬ! ЗАГРУЗКА...</div>';
             setTimeout(() => {
                 window.location.href = '/index.html';
             }, 800);
         } else {
-            msgDiv.innerHTML = '<div class="message error">❌ ' + result.error + '</div>';
+            msgDiv.innerHTML = '<div class="message error">❌ ' + data.error + '</div>';
         }
     } catch(err) {
         console.error('Ошибка:', err);
@@ -247,16 +249,18 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
         });
-        const result = await response.json();
-        console.log('Ответ сервера:', result);
-        if (result.success) {
-            localStorage.setItem('mining_token', result.token);
+        const data = await response.json();
+        console.log('Ответ сервера:', data);
+        
+        if (data.success) {
+            localStorage.setItem('mining_token', data.token);
+            localStorage.setItem('mining_user', JSON.stringify(data.user));
             msgDiv.innerHTML = '<div class="message success">✅ АККАУНТ СОЗДАН! ЗАГРУЗКА...</div>';
-            //setTimeout(() => {
-            //    window.location.href = '/index.html';
-            //}, 800);
+            setTimeout(() => {
+                window.location.href = '/index.html';
+            }, 800);
         } else {
-            msgDiv.innerHTML = '<div class="message error">❌ ' + result.error + '</div>';
+            msgDiv.innerHTML = '<div class="message error">❌ ' + data.error + '</div>';
         }
     } catch(err) {
         console.error('Ошибка:', err);

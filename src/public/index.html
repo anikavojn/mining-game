@@ -5394,4 +5394,32 @@ if (token) {
 }
 </script>
 
+<script>
+// ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ИМЕНИ ИЗ LOCALSTORAGE
+(function() {
+    const saved = localStorage.getItem('mining_user');
+    if (saved) {
+        try {
+            const user = JSON.parse(saved);
+            if (user && user.username) {
+                const nameDisplay = document.getElementById('playerNameDisplay');
+                if (nameDisplay) nameDisplay.innerText = user.username;
+                
+                const profileSpan = document.getElementById('profileUsername');
+                if (profileSpan) profileSpan.innerText = user.username;
+                
+                const profileBtn = document.querySelector('.profile-btn');
+                if (profileBtn) profileBtn.innerHTML = `<span></span> ${user.username} <span>▼</span>`;
+                
+                console.log('✅ Имя загружено из localStorage:', user.username);
+            }
+        } catch(e) {
+            console.error('Ошибка парсинга mining_user:', e);
+        }
+    } else {
+        console.log('❌ mining_user не найден в localStorage');
+    }
+})();
+</script>
+
 </html>
