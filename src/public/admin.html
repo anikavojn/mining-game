@@ -752,15 +752,27 @@
     const API_URL = '';  // Пустая строка = относительные пути
 
     // Подключаем сокет для админки
+// Подключение сокета для админки
 let adminSocket = null;
 
-function connectAdminSocket() {
-    adminSocket = io('https://mining-game-818s.onrender.com');
+function initAdminSocket() {
+    const socketUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000' 
+        : 'https://mining-game-818s.onrender.com';
+    
+    adminSocket = io(socketUrl);
+    
     adminSocket.on('connect', () => {
         addLog(`✅ Сокет подключён, можно отправлять сообщения`, 'success');
     });
+    
     adminSocket.on('connect_error', (err) => {
         addLog(`❌ Ошибка сокета: ${err.message}`, 'error');
+    });
+    
+    // Получение своих сообщений (для отображения в админке)
+    adminSocket.on('admin_message', (data) => {
+        addChatMessage(data.username || "👑 АДМИН", data.text, "admin");
     });
 }
 
@@ -1160,20 +1172,20 @@ connectAdminSocket();
     const text = input?.value.trim();
     if (!text) return;
     
-    // Отправляем через сокет
-    if (window.socket && window.socket.connected) {
-        window.socket.emit('admin_message', {
+    if (adminSocket && adminSocket.connected) {
+        // Отправляем сообщение
+        adminSocket.emit('admin_message', {
             text: text,
             username: '👑 АДМИН'
         });
         
-        // Добавляем сообщение в чат админки
+        // Сразу показываем в админке
         addChatMessage("👑 АДМИН", text, "admin");
-        
         addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
         input.value = '';
     } else {
-        addLog(`❌ Сокет не подключён`, 'error');
+        addLog(`❌ Сокет не подключён. Попробуйте обновить страницу.`, 'error');
+        showToast(`❌ Сокет не подключён`);
     }
 }
 
@@ -1252,6 +1264,7 @@ connectAdminSocket();
         bindEvents();
         renderChat();
         loadBackupsFromStorage();
+        initAdminSocket(); 
         checkAdminAuth();
         addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
     }
