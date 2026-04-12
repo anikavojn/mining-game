@@ -741,49 +741,17 @@
 
 <script>
     // ========== ДАННЫЕ ==========
-let players = [];
-let bannedList = [];
-let backups = [];
-let activeGlobalEvent = null;
-let eventTimer = null;
-let eventCount = 0;
-let editPlayerId = null;
+    let players = [];
+    let bannedList = [];
+    let backups = [];
+    let activeGlobalEvent = null;
+    let eventTimer = null;
+    let eventCount = 0;
+    let editPlayerId = null;
+    let adminToken = localStorage.getItem('admin_token');
+    const API_URL = '';  // Пустая строка = относительные пути
 
-    // ========== ЧАТ ==========
-    let chatMessages = [
-        { name: "🔧 СИСТЕМА", text: "Админ-чат активен", type: "system" },
-        { name: "🔧 СИСТЕМА", text: "Вы можете отправлять сообщения всем игрокам", type: "system" }
-    ];
-
-    function addChatMessage(name, text, type = "admin") {
-        chatMessages.push({ name, text, type });
-        if (chatMessages.length > 100) chatMessages.shift();
-        renderChat();
-        addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
-    }
-
-    function renderChat() {
-        const container = document.getElementById('chatMessages');
-        if (!container) return;
-        container.innerHTML = chatMessages.map(msg => `
-            <div class="chat-message">
-                <span class="chat-name ${msg.type === 'system' ? 'admin' : ''}">${msg.name}:</span>
-                <span class="chat-text"> ${msg.text}</span>
-            </div>
-        `).join('');
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function sendAdminMessage() {
-        const input = document.getElementById('chatInput');
-        const text = input.value.trim();
-        if (!text) return;
-        addChatMessage("👑 АДМИН", text, "admin");
-        input.value = '';
-        showToast(`📨 Сообщение отправлено всем игрокам`);
-    }
-
-    // ========== UI ФУНКЦИИ ==========
+    // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
     function showToast(msg) {
         const stack = document.getElementById('toastStack');
         const toast = document.createElement('div');
@@ -795,6 +763,7 @@ let editPlayerId = null;
 
     function addLog(msg, type = 'info') {
         const container = document.getElementById('logContainer');
+        if (!container) return;
         const time = new Date().toLocaleTimeString();
         const line = document.createElement('div');
         line.className = `log-line ${type}`;
@@ -805,56 +774,110 @@ let editPlayerId = null;
     }
 
     function updateStatsUI() {
-        const active = players.filter(p => !p.banned);
+        const active = players.filter(p => !p.is_banned);
         document.getElementById('statPlayers').innerText = active.length;
-        const totalHash = active.reduce((s, p) => s + p.hash, 0);
+        const totalHash = active.reduce((s, p) => s + (p.base_power || 0), 0);
         document.getElementById('statHash').innerText = totalHash.toFixed(0) + ' TH/s';
         document.getElementById('statEvents').innerText = eventCount;
         document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString();
     }
 
+    // ========== РАБОТА С СЕРВЕРОМ ==========
+    async function loadPlayersFromServer() {
+        try {
+            const headers = adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {};
+            const res = await fetch(`${API_URL}/api/admin/players`, { headers });
+            const data = await res.json();
+            if (data.success) {
+                players = data.players;
+                renderPlayers();
+                renderBans();
+                updateStatsUI();
+                addLog(`✅ Загружено ${players.length} игроков`, 'success');
+            } else {
+                addLog(`❌ Ошибка: ${data.error}`, 'error');
+            }
+        } catch (err) {
+            addLog(`❌ Ошибка загрузки: ${err.message}`, 'error');
+        }
+    }
+
+    async function updatePlayerOnServer(playerId, updateData) {
+        if (!adminToken) return false;
+        try {
+            const res = await fetch(`${API_URL}/api/admin/players/${playerId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${adminToken}`
+                },
+                body: JSON.stringify(updateData)
+            });
+            const data = await res.json();
+            if (data.success) {
+                addLog(`✅ Игрок обновлён`, 'success');
+                await loadPlayersFromServer();
+                return true;
+            }
+        } catch (err) {
+            addLog(`❌ Ошибка: ${err.message}`, 'error');
+        }
+        return false;
+    }
+
+    async function banPlayerOnServer(playerId) {
+        if (!adminToken) return false;
+        try {
+            const res = await fetch(`${API_URL}/api/admin/players/${playerId}/ban`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${adminToken}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                addLog(`🚫 Игрок забанен`, 'error');
+                await loadPlayersFromServer();
+                return true;
+            }
+        } catch (err) {
+            addLog(`❌ Ошибка: ${err.message}`, 'error');
+        }
+        return false;
+    }
+
+    async function unbanPlayerOnServer(playerId) {
+        if (!adminToken) return false;
+        try {
+            const res = await fetch(`${API_URL}/api/admin/players/${playerId}/unban`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${adminToken}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                addLog(`🔓 Игрок разбанен`, 'success');
+                await loadPlayersFromServer();
+                return true;
+            }
+        } catch (err) {
+            addLog(`❌ Ошибка: ${err.message}`, 'error');
+        }
+        return false;
+    }
+
+    // ========== UI ФУНКЦИИ ==========
     function renderPlayers() {
-    const container = document.getElementById('playersList');
-    const active = players.filter(p => !p.is_banned);
-    
-    if (!active.length) { 
-        container.innerHTML = '<div style="padding: 30px; text-align:center; color:#7a9abe;">Нет активных игроков</div>'; 
-        return; 
-    }
-    
-    container.innerHTML = active.map(p => `
-        <div class="player-card">
-            <div>
-                <div class="player-name">${p.username}</div>
-                <div class="player-detail">ID: ${p.id} | ${p.base_power} TH/s | ${parseFloat(p.balance).toFixed(8)} SOL | 🔧${p.chips}</div>
-            </div>
-            <div class="player-actions">
-                <button class="btn btn-sm" onclick="openEdit(${p.id})">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick="banPlayer(${p.id})">🚫</button>
-            </div>
-        </div>
-    `).join('');
-}
-
-    function renderBans() {
-        const container = document.getElementById('banList');
-        if (!bannedList.length) { container.innerHTML = '<div style="padding: 30px; text-align:center; color:#7a9abe;">Нет забаненных игроков</div>'; return; }
-        container.innerHTML = bannedList.map(p => `
+        const container = document.getElementById('playersList');
+        if (!container) return;
+        const active = players.filter(p => !p.is_banned);
+        if (!active.length) {
+            container.innerHTML = '<div style="padding: 30px; text-align:center; color:#7a9abe;">Нет активных игроков</div>';
+            return;
+        }
+        container.innerHTML = active.map(p => `
             <div class="player-card">
-                <div><div class="player-name">${p.name}</div><div class="player-detail">ID: ${p.id} | Был: ${p.hash} TH/s</div></div>
-                <button class="btn btn-sm btn-success" onclick="unbanPlayer(${p.id})">🔓 РАЗБАН</button>
-            </div>
-        `).join('');
-    }
-
-    function searchPlayers() {
-        const query = document.getElementById('searchInput').value.toLowerCase();
-        const resultDiv = document.getElementById('searchResult');
-        const found = players.filter(p => !p.banned && (p.name.toLowerCase().includes(query) || p.id.toString().includes(query)));
-        if (!found.length) { resultDiv.innerHTML = '<div style="color:#ff8888; text-align:center;">❌ Не найдено</div>'; return; }
-        resultDiv.innerHTML = found.map(p => `
-            <div class="player-card">
-                <div><div class="player-name">${p.name}</div><div class="player-detail">${p.hash} TH/s | ${p.balance.toFixed(8)} SOL</div></div>
+                <div>
+                    <div class="player-name">${escapeHtml(p.username)}</div>
+                    <div class="player-detail">ID: ${p.id} | ${p.base_power || 0} TH/s | ${parseFloat(p.balance || 0).toFixed(8)} SOL | 🔧${p.chips || 0}</div>
+                </div>
                 <div class="player-actions">
                     <button class="btn btn-sm" onclick="openEdit(${p.id})">✏️</button>
                     <button class="btn btn-sm btn-danger" onclick="banPlayer(${p.id})">🚫</button>
@@ -863,113 +886,179 @@ let editPlayerId = null;
         `).join('');
     }
 
+    function renderBans() {
+        const container = document.getElementById('banList');
+        if (!container) return;
+        const banned = players.filter(p => p.is_banned);
+        if (!banned.length) {
+            container.innerHTML = '<div style="padding: 30px; text-align:center; color:#7a9abe;">Нет забаненных игроков</div>';
+            return;
+        }
+        container.innerHTML = banned.map(p => `
+            <div class="player-card">
+                <div>
+                    <div class="player-name">${escapeHtml(p.username)}</div>
+                    <div class="player-detail">ID: ${p.id} | Был: ${p.base_power || 0} TH/s</div>
+                </div>
+                <button class="btn btn-sm btn-success" onclick="unbanPlayer(${p.id})">🔓 РАЗБАН</button>
+            </div>
+        `).join('');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
     function openEdit(id) {
         const p = players.find(x => x.id === id);
-        if (!p || p.banned) return;
+        if (!p) return;
         editPlayerId = id;
         const modal = document.getElementById('editModal');
         const content = document.getElementById('modalContent');
         content.innerHTML = `
-            <div class="form-group"><label>НИК</label><input type="text" id="editName" value="${p.name}"></div>
-            <div class="form-group"><label>БАЛАНС (SOL)</label><input type="number" id="editBalance" step="0.00000001" value="${p.balance}"></div>
-            <div class="form-group"><label>ХЕШРЕЙТ (TH/s)</label><input type="number" id="editHash" step="0.1" value="${p.hash}"></div>
-            <div class="form-group"><label>ЧИПЫ</label><input type="number" id="editChips" value="${p.chips}"></div>
-            <div class="form-group"><label>ЗАЩИТА (%)</label><input type="number" id="editDefense" value="${p.defense}"></div>
-            <div class="form-group"><label>УРОВЕНЬ</label><input type="number" id="editLevel" value="${p.level}"></div>
+            <div class="form-group"><label>НИК</label><input type="text" id="editName" value="${escapeHtml(p.username)}" readonly style="opacity:0.7;"></div>
+            <div class="form-group"><label>БАЛАНС (SOL)</label><input type="number" id="editBalance" step="0.00000001" value="${p.balance || 0}"></div>
+            <div class="form-group"><label>ХЕШРЕЙТ (TH/s)</label><input type="number" id="editHash" step="0.1" value="${p.base_power || 0}"></div>
+            <div class="form-group"><label>ЧИПЫ</label><input type="number" id="editChips" value="${p.chips || 0}"></div>
+            <div class="form-group"><label>ЗАЩИТА (%)</label><input type="number" id="editDefense" value="${p.defense || 30}"></div>
         `;
-        modal.classList.add('active');
+        document.getElementById('editModal').classList.add('active');
     }
 
-    function saveEdit() {
-        const p = players.find(x => x.id === editPlayerId);
-        if (p) {
-            p.name = document.getElementById('editName').value;
-            p.balance = parseFloat(document.getElementById('editBalance').value);
-            p.hash = parseFloat(document.getElementById('editHash').value);
-            p.chips = parseInt(document.getElementById('editChips').value);
-            p.defense = parseInt(document.getElementById('editDefense').value);
-            p.level = parseInt(document.getElementById('editLevel').value);
-            addLog(`Игрок ${p.name} отредактирован`, 'success');
-            showToast(`✅ Игрок ${p.name} обновлён`);
-            renderPlayers();
-            updateStatsUI();
-        }
-        closeModal();
+    function closeModal() {
+        document.getElementById('editModal').classList.remove('active');
+        editPlayerId = null;
     }
 
-    function closeModal() { document.getElementById('editModal').classList.remove('active'); }
-
-    function banPlayer(id) {
-        const p = players.find(x => x.id === id);
-        if (p && !p.banned) {
-            p.banned = true;
-            bannedList.push({ ...p });
-            players = players.filter(x => x.id !== id);
-            addLog(`🚫 Игрок ${p.name} забанен`, 'error');
-            showToast(`🚫 ${p.name} забанен`);
-            renderPlayers();
-            renderBans();
-            updateStatsUI();
+    async function saveEdit() {
+        if (editPlayerId) {
+            await updatePlayerOnServer(editPlayerId, {
+                balance: parseFloat(document.getElementById('editBalance')?.value || 0),
+                chips: parseInt(document.getElementById('editChips')?.value || 0),
+                base_power: parseFloat(document.getElementById('editHash')?.value || 0),
+                defense: parseInt(document.getElementById('editDefense')?.value || 30)
+            });
+            closeModal();
         }
     }
 
-    function unbanPlayer(id) {
-        const idx = bannedList.findIndex(x => x.id === id);
-        if (idx !== -1) {
-            const p = bannedList[idx];
-            p.banned = false;
-            players.push(p);
-            bannedList.splice(idx, 1);
-            addLog(`🔓 Игрок ${p.name} разбанен`, 'success');
-            showToast(`✅ ${p.name} разбанен`);
-            renderPlayers();
-            renderBans();
-            updateStatsUI();
+    async function banPlayer(id) {
+        if (confirm('Забанить игрока?')) {
+            await banPlayerOnServer(id);
         }
     }
 
-    function createBackup() {
-        const backup = { id: Date.now(), date: new Date().toLocaleString(), players: JSON.parse(JSON.stringify(players)), bans: JSON.parse(JSON.stringify(bannedList)) };
-        backups.unshift(backup);
-        if (backups.length > 10) backups.pop();
-        localStorage.setItem('admin_backups', JSON.stringify(backups));
-        const select = document.getElementById('backupSelect');
-        select.innerHTML = '<option value="">-- Выберите бэкап --</option>' + backups.map(b => `<option value="${b.id}">${b.date} (${b.players.length} игроков)</option>`).join('');
-        addLog(`📀 Создан бэкап ${backup.date}`, 'success');
-        showToast(`💾 Бэкап создан`);
-    }
-
-    function restoreBackup() {
-        const select = document.getElementById('backupSelect');
-        const id = parseInt(select.value);
-        if (!id) return;
-        const backup = backups.find(b => b.id === id);
-        if (backup) {
-            players = backup.players;
-            bannedList = backup.bans;
-            addLog(`⚠️ Восстановлен бэкап от ${backup.date}`, 'warning');
-            showToast(`🔄 Бэкап восстановлен`);
-            renderPlayers();
-            renderBans();
-            updateStatsUI();
+    async function unbanPlayer(id) {
+        if (confirm('Разбанить игрока?')) {
+            await unbanPlayerOnServer(id);
         }
     }
 
-    function resetGame() {
-        if (confirm('💀 ПОЛНЫЙ СБРОС! Все данные будут удалены. Продолжить?')) {
-            players = [{ id: 1001, name: "MINER_747", hash: 2.3, balance: 0, chips: 15, defense: 30, level: 1, banned: false }];
-            bannedList = [];
-            addLog(`💀 ПОЛНЫЙ СБРОС ИГРЫ`, 'error');
-            showToast(`💀 Игра сброшена`);
-            renderPlayers();
-            renderBans();
-            updateStatsUI();
-        }
+    // ========== АДМИН ЛОГИН ==========
+    function showAdminLogin() {
+        const loginHtml = `
+            <div id="adminLoginModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; align-items: center; justify-content: center;">
+                <div style="background: #0f1419; border: 2px solid #ff6666; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="font-size: 20px; font-weight: bold; color: #ff6666;">👑 АДМИН ПАНЕЛЬ</div>
+                        <div style="font-size: 12px; color: #8cc9ff;">Вход в систему управления</div>
+                    </div>
+                    <input type="text" id="adminUsername" placeholder="Логин" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
+                    <input type="password" id="adminPassword" placeholder="Пароль" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
+                    <button id="adminLoginBtn" style="width: 100%; padding: 12px; background: #8a2a2a; border: 2px solid #ff6666; color: white; border-radius: 40px; font-weight: bold; cursor: pointer;">ВОЙТИ</button>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', loginHtml);
+        
+        document.getElementById('adminLoginBtn').onclick = async () => {
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            try {
+                const res = await fetch(`${API_URL}/api/auth/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    adminToken = data.token;
+                    localStorage.setItem('admin_token', adminToken);
+                    document.getElementById('adminLoginModal').remove();
+                    await loadPlayersFromServer();
+                    addLog(`🔐 Администратор вошёл`, 'success');
+                } else {
+                    alert('Ошибка входа: ' + data.error);
+                }
+            } catch (err) {
+                alert('Ошибка соединения с сервером');
+            }
+        };
     }
 
+    async function checkAdminAuth() {
+        if (!adminToken) {
+            showAdminLogin();
+            return false;
+        }
+        await loadPlayersFromServer();
+        return true;
+    }
+
+    // ========== TABS ==========
+    function initTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('#tabList, #tabSearch, #tabBans').forEach(p => p.classList.remove('active'));
+                if (tab === 'list') document.getElementById('tabList').classList.add('active');
+                if (tab === 'search') document.getElementById('tabSearch').classList.add('active');
+                if (tab === 'bans') document.getElementById('tabBans').classList.add('active');
+            });
+        });
+    }
+
+    function toggleCard(header) {
+        const body = header.closest('.card').querySelector('.card-body');
+        const arrow = header.querySelector('span');
+        body.classList.toggle('collapsed');
+        arrow.innerHTML = body.classList.contains('collapsed') ? '▲' : '▼';
+    }
+
+    // ========== ПОИСК ==========
+    function searchPlayers() {
+        const query = document.getElementById('searchInput')?.value.toLowerCase();
+        const resultDiv = document.getElementById('searchResult');
+        if (!query || !resultDiv) return;
+        const found = players.filter(p => !p.is_banned && (p.username.toLowerCase().includes(query) || p.id.toString().includes(query)));
+        if (!found.length) {
+            resultDiv.innerHTML = '<div style="color:#ff8888; text-align:center;">❌ Не найдено</div>';
+            return;
+        }
+        resultDiv.innerHTML = found.map(p => `
+            <div class="player-card">
+                <div><div class="player-name">${escapeHtml(p.username)}</div><div class="player-detail">${p.base_power || 0} TH/s | ${(p.balance || 0).toFixed(8)} SOL</div></div>
+                <div class="player-actions">
+                    <button class="btn btn-sm" onclick="openEdit(${p.id})">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="banPlayer(${p.id})">🚫</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // ========== ГЛОБАЛЬНЫЕ СОБЫТИЯ ==========
     function startGlobalEvent() {
         if (activeGlobalEvent) { showToast(`⚠️ Событие уже активно`); return; }
-        const type = document.getElementById('globalEvent').value;
+        const type = document.getElementById('globalEvent')?.value;
         const names = { double_reward: '🎁 Двойная награда', half_energy: '⚡ Половина энергии', mining_boost: '🚀 Ускорение x2', chaos: '💀 Хаос-режим' };
         activeGlobalEvent = { name: names[type], end: Date.now() + 1800000 };
         eventCount++;
@@ -989,372 +1078,167 @@ let editPlayerId = null;
 
     function stopGlobalEvent() {
         if (activeGlobalEvent) {
-            addLog(`⛔ Событие "${activeGlobalEvent.name}" принудительно остановлено`, 'warning');
+            addLog(`⛔ Событие "${activeGlobalEvent.name}" остановлено`, 'warning');
             showToast(`⛔ Событие остановлено`);
             activeGlobalEvent = null;
             if (eventTimer) clearInterval(eventTimer);
         } else showToast(`❌ Нет активных событий`);
     }
 
-    function initTabs() {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.dataset.tab;
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                document.querySelectorAll('#tabList, #tabSearch, #tabBans').forEach(p => p.classList.remove('active'));
-                if (tab === 'list') document.getElementById('tabList').classList.add('active');
-                if (tab === 'search') document.getElementById('tabSearch').classList.add('active');
-                if (tab === 'bans') document.getElementById('tabBans').classList.add('active');
-            });
-        });
-    }
-
-    function loadBackups() {
-        const saved = localStorage.getItem('admin_backups');
-        if (saved) { backups = JSON.parse(saved); }
+    // ========== БЭКАПЫ ==========
+    function createBackup() {
+        const backup = { id: Date.now(), date: new Date().toLocaleString(), players: JSON.parse(JSON.stringify(players)) };
+        backups.unshift(backup);
+        if (backups.length > 10) backups.pop();
+        localStorage.setItem('admin_backups', JSON.stringify(backups));
         const select = document.getElementById('backupSelect');
-        select.innerHTML = '<option value="">-- Выберите бэкап --</option>' + backups.map(b => `<option value="${b.id}">${b.date} (${b.players.length} игроков)</option>`).join('');
+        if (select) {
+            select.innerHTML = '<option value="">-- Выберите бэкап --</option>' + backups.map(b => `<option value="${b.id}">${b.date} (${b.players.length} игроков)</option>`).join('');
+        }
+        addLog(`📀 Создан бэкап`, 'success');
+        showToast(`💾 Бэкап создан`);
     }
 
+    function restoreBackup() {
+        const select = document.getElementById('backupSelect');
+        const id = parseInt(select?.value);
+        if (!id) return;
+        const backup = backups.find(b => b.id === id);
+        if (backup) {
+            players = backup.players;
+            addLog(`⚠️ Восстановлен бэкап от ${backup.date}`, 'warning');
+            showToast(`🔄 Бэкап восстановлен`);
+            renderPlayers();
+            renderBans();
+            updateStatsUI();
+        }
+    }
+
+    function resetGame() {
+        if (confirm('💀 ПОЛНЫЙ СБРОС! Все данные будут удалены. Продолжить?')) {
+            addLog(`💀 ПОЛНЫЙ СБРОС ИГРЫ`, 'error');
+            showToast(`💀 Игра сброшена`);
+        }
+    }
+
+    // ========== СЛАЙДЕРЫ ==========
+    function bindSliders() {
+        const hashMult = document.getElementById('hashMult');
+        const incomeMult = document.getElementById('incomeMult');
+        const sellTax = document.getElementById('sellTax');
+        const overheatDmg = document.getElementById('overheatDmg');
+        const voltagePen = document.getElementById('voltagePen');
+        const pvpChance = document.getElementById('pvpChance');
+        
+        if (hashMult) hashMult.oninput = () => document.getElementById('hashMultVal').innerText = hashMult.value + '%';
+        if (incomeMult) incomeMult.oninput = () => document.getElementById('incomeMultVal').innerText = incomeMult.value + '%';
+        if (sellTax) sellTax.oninput = () => document.getElementById('sellTaxVal').innerText = sellTax.value + '%';
+        if (overheatDmg) overheatDmg.oninput = () => document.getElementById('overheatVal').innerText = overheatDmg.value + '%';
+        if (voltagePen) voltagePen.oninput = () => document.getElementById('voltageVal').innerText = voltagePen.value + '%';
+        if (pvpChance) pvpChance.oninput = () => document.getElementById('pvpVal').innerText = pvpChance.value + '%';
+    }
+
+    // ========== ОТПРАВКА СООБЩЕНИЙ ==========
+    function sendAdminMessage() {
+        const input = document.getElementById('chatInput');
+        const text = input?.value.trim();
+        if (!text) return;
+        addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
+        showToast(`📨 Сообщение отправлено`);
+        if (input) input.value = '';
+    }
+
+    // ========== ЧАТ ==========
+    let chatMessages = [
+        { name: "🔧 СИСТЕМА", text: "Админ-чат активен", type: "system" }
+    ];
+
+    function renderChat() {
+        const container = document.getElementById('chatMessages');
+        if (!container) return;
+        container.innerHTML = chatMessages.map(msg => `
+            <div class="chat-message">
+                <span class="chat-name ${msg.type === 'system' ? 'admin' : ''}">${msg.name}:</span>
+                <span class="chat-text"> ${msg.text}</span>
+            </div>
+        `).join('');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function addChatMessage(name, text, type = "admin") {
+        chatMessages.push({ name, text, type });
+        if (chatMessages.length > 100) chatMessages.shift();
+        renderChat();
+    }
+
+    // ========== ИНИЦИАЛИЗАЦИЯ ==========
     function bindEvents() {
-        document.getElementById('hashMult').oninput = () => document.getElementById('hashMultVal').innerText = document.getElementById('hashMult').value + '%';
-        document.getElementById('incomeMult').oninput = () => document.getElementById('incomeMultVal').innerText = document.getElementById('incomeMult').value + '%';
-        document.getElementById('sellTax').oninput = () => document.getElementById('sellTaxVal').innerText = document.getElementById('sellTax').value + '%';
-        document.getElementById('overheatDmg').oninput = () => document.getElementById('overheatVal').innerText = document.getElementById('overheatDmg').value + '%';
-        document.getElementById('voltagePen').oninput = () => document.getElementById('voltageVal').innerText = document.getElementById('voltagePen').value + '%';
-        document.getElementById('pvpChance').oninput = () => document.getElementById('pvpVal').innerText = document.getElementById('pvpChance').value + '%';
-
-        document.getElementById('sendMsgBtn').onclick = () => {
-            const msg = document.getElementById('sysMsg').value.trim();
-            if (msg) { addLog(`📡 ГЛОБАЛЬНОЕ СООБЩЕНИЕ: "${msg}"`, 'success'); showToast(`📡 Сообщение отправлено`); document.getElementById('sysMsg').value = ''; }
-        };
-        document.getElementById('startEventBtn').onclick = startGlobalEvent;
-        document.getElementById('stopEventBtn').onclick = stopGlobalEvent;
-        document.getElementById('applyEconomyBtn').onclick = () => { addLog(`💰 Настройки экономики применены`, 'success'); showToast(`💾 Экономика обновлена`); };
-        document.getElementById('applyBalanceBtn').onclick = () => { addLog(`⚖️ Балансировка применена`, 'success'); showToast(`⚙️ Балансировка обновлена`); };
-        document.getElementById('backupBtn').onclick = createBackup;
-        document.getElementById('restoreBtn').onclick = restoreBackup;
-        document.getElementById('resetGameBtn').onclick = resetGame;
-        document.getElementById('clearLogsBtn').onclick = () => { document.getElementById('logContainer').innerHTML = ''; addLog(`Логи очищены`, 'info'); };
-        document.getElementById('refreshBtn').onclick = () => { renderPlayers(); renderBans(); updateStatsUI(); addLog(`🔄 Данные обновлены`, 'success'); };
-        document.getElementById('searchBtn').onclick = searchPlayers;
-        document.getElementById('saveEditBtn').onclick = saveEdit;
-        document.getElementById('sendChatBtn').onclick = sendAdminMessage;
-        document.getElementById('chatInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendAdminMessage(); });
-        document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchPlayers(); });
+        document.getElementById('sendMsgBtn')?.addEventListener('click', () => {
+            const msg = document.getElementById('sysMsg')?.value.trim();
+            if (msg) {
+                addLog(`📡 ГЛОБАЛЬНОЕ СООБЩЕНИЕ: "${msg}"`, 'success');
+                showToast(`📡 Сообщение отправлено`);
+                if (document.getElementById('sysMsg')) document.getElementById('sysMsg').value = '';
+            }
+        });
+        document.getElementById('startEventBtn')?.addEventListener('click', startGlobalEvent);
+        document.getElementById('stopEventBtn')?.addEventListener('click', stopGlobalEvent);
+        document.getElementById('applyEconomyBtn')?.addEventListener('click', () => {
+            addLog(`💰 Настройки экономики применены`, 'success');
+            showToast(`💾 Экономика обновлена`);
+        });
+        document.getElementById('applyBalanceBtn')?.addEventListener('click', () => {
+            addLog(`⚖️ Балансировка применена`, 'success');
+            showToast(`⚙️ Балансировка обновлена`);
+        });
+        document.getElementById('backupBtn')?.addEventListener('click', createBackup);
+        document.getElementById('restoreBtn')?.addEventListener('click', restoreBackup);
+        document.getElementById('resetGameBtn')?.addEventListener('click', resetGame);
+        document.getElementById('clearLogsBtn')?.addEventListener('click', () => {
+            const container = document.getElementById('logContainer');
+            if (container) container.innerHTML = '';
+            addLog(`Логи очищены`, 'info');
+        });
+        document.getElementById('refreshBtn')?.addEventListener('click', () => {
+            loadPlayersFromServer();
+            addLog(`🔄 Данные обновлены`, 'success');
+        });
+        document.getElementById('searchBtn')?.addEventListener('click', searchPlayers);
+        document.getElementById('saveEditBtn')?.addEventListener('click', saveEdit);
+        document.getElementById('sendChatBtn')?.addEventListener('click', sendAdminMessage);
+        document.getElementById('chatInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendAdminMessage(); });
+        document.getElementById('searchInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchPlayers(); });
     }
 
-    function init() {
-    loadBackups();
-    initTabs();
-    bindEvents();
-    renderChat();
-    loadPlayersFromServer();  // Загружаем игроков с сервера
-    addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
-}
-
+    // ========== ЗАПУСК ==========
     window.openEdit = openEdit;
     window.banPlayer = banPlayer;
     window.unbanPlayer = unbanPlayer;
     window.closeModal = closeModal;
-    window.toggleCard = (header) => {
-        const body = header.closest('.card').querySelector('.card-body');
-        const arrow = header.querySelector('span');
-        body.classList.toggle('collapsed');
-        arrow.innerHTML = body.classList.contains('collapsed') ? '▲' : '▼';
-    };
+    window.toggleCard = toggleCard;
+
+    function init() {
+        bindSliders();
+        initTabs();
+        bindEvents();
+        renderChat();
+        loadBackupsFromStorage();
+        checkAdminAuth();
+        addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
+    }
+
+    function loadBackupsFromStorage() {
+        const saved = localStorage.getItem('admin_backups');
+        if (saved) {
+            backups = JSON.parse(saved);
+            const select = document.getElementById('backupSelect');
+            if (select) {
+                select.innerHTML = '<option value="">-- Выберите бэкап --</option>' + backups.map(b => `<option value="${b.id}">${b.date} (${b.players.length} игроков)</option>`).join('');
+            }
+        }
+    }
 
     init();
-    
-
-function showAdminLogin() {
-    const loginHtml = `
-        <div id="adminLoginModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; align-items: center; justify-content: center;">
-            <div style="background: #0f1419; border: 2px solid #ff6666; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <div style="font-size: 20px; font-weight: bold; color: #ff6666;">👑 АДМИН ПАНЕЛЬ</div>
-                    <div style="font-size: 12px; color: #8cc9ff;">Вход в систему управления</div>
-                </div>
-                <input type="text" id="adminUsername" placeholder="Логин" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                <input type="password" id="adminPassword" placeholder="Пароль" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                <input type="password" id="adminSecretKey" placeholder="Секретный ключ" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                <button id="adminLoginBtn" style="width: 100%; padding: 12px; background: #8a2a2a; border: 2px solid #ff6666; color: white; border-radius: 40px; font-weight: bold; cursor: pointer;">ВОЙТИ</button>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', loginHtml);
-    
-    document.getElementById('adminLoginBtn').onclick = async () => {
-        const username = document.getElementById('adminUsername').value;
-        const password = document.getElementById('adminPassword').value;
-        const secretKey = document.getElementById('adminSecretKey').value;
-        
-        try {
-            const res = await fetch(`${API_URL}/auth/admin/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, secretKey })
-            });
-            const data = await res.json();
-            if (data.success) {
-                adminToken = data.token;
-                localStorage.setItem('admin_token', adminToken);
-                document.getElementById('adminLoginModal').remove();
-                initAdminPanel();
-            } else {
-                alert('Ошибка входа: ' + data.error);
-            }
-        } catch (err) {
-            alert('Ошибка соединения');
-        }
-    };
-}
-
-// Загрузка игроков с сервера
-async function loadPlayersFromServer() {
-    try {
-        const res = await fetch('/api/admin/players');
-        const data = await res.json();
-        if (data.success) {
-            players = data.players;
-            renderPlayers();
-            renderBans();
-            updateStatsUI();
-            addLog(`✅ Загружено ${players.length} игроков`, 'success');
-        }
-    } catch (err) {
-        addLog(`❌ Ошибка загрузки игроков: ${err.message}`, 'error');
-    }
-}
-
-// Инициализация админ-панели
-async function initAdminPanel() {
-    await loadPlayersFromServer();
-    
-    // Переопределяем функции для работы с сервером
-    window.saveEdit = async function() {
-        const p = players.find(x => x.id === editPlayerId);
-        if (p) {
-            try {
-                await fetch(`${API_URL}/admin/players/${p._id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${adminToken}`
-                    },
-                    body: JSON.stringify({
-                        balance: parseFloat(document.getElementById('editBalance').value),
-                        chips: parseInt(document.getElementById('editChips').value),
-                        basePower: parseFloat(document.getElementById('editHash').value),
-                        defense: parseInt(document.getElementById('editDefense').value)
-                    })
-                });
-                addLog(`Игрок обновлён`, 'success');
-                await loadPlayersFromServer();
-            } catch(err) { console.error(err); }
-        }
-        closeModal();
-    };
-    
-    window.banPlayer = async function(id) {
-        const p = players.find(x => x._id === id);
-        if (p) {
-            await fetch(`${API_URL}/admin/players/${id}/ban`, {
-                method: 'POST',
-                
-            });
-            await loadPlayersFromServer();
-            addLog(`Игрок ${p.username} забанен`, 'error');
-        }
-    };
-    
-    window.unbanPlayer = async function(id) {
-        await fetch(`${API_URL}/admin/players/${id}/unban`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${adminToken}` }
-        });
-        await loadPlayersFromServer();
-    };
-    
-    // Отправка сообщения всем
-    document.getElementById('sendMsgBtn').onclick = async () => {
-        const msg = document.getElementById('sysMsg').value.trim();
-        if (msg) {
-            await fetch(`${API_URL}/admin/broadcast`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${adminToken}`
-                },
-                body: JSON.stringify({ message: msg })
-            });
-            addLog(`📡 Сообщение отправлено всем: "${msg}"`, 'success');
-            document.getElementById('sysMsg').value = '';
-        }
-    };
-}
-
-// ========== ПОДКЛЮЧЕНИЕ К СЕРВЕРУ (РАБОЧАЯ ВЕРСИЯ) ==========
-let adminToken = localStorage.getItem('admin_token');
-const API_URL = '';
-
-// Проверка авторизации админа
-async function checkAdminAuth() {
-    if (!adminToken) {
-        showAdminLogin();
-        return false;
-    }
-    await loadPlayersFromServer();
-    return true;
-}
-
-function showAdminLogin() {
-    const loginHtml = `
-        <div id="adminLoginModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; align-items: center; justify-content: center;">
-            <div style="background: #0f1419; border: 2px solid #ff6666; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <div style="font-size: 20px; font-weight: bold; color: #ff6666;">👑 АДМИН ПАНЕЛЬ</div>
-                    <div style="font-size: 12px; color: #8cc9ff;">Вход в систему управления</div>
-                </div>
-                <input type="text" id="adminUsername" placeholder="Логин" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                <input type="password" id="adminPassword" placeholder="Пароль" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                <input type="password" id="adminSecretKey" placeholder="Секретный ключ" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                <button id="adminLoginBtn" style="width: 100%; padding: 12px; background: #8a2a2a; border: 2px solid #ff6666; color: white; border-radius: 40px; font-weight: bold; cursor: pointer;">ВОЙТИ</button>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', loginHtml);
-    
-    document.getElementById('adminLoginBtn').onclick = async () => {
-        const username = document.getElementById('adminUsername').value;
-        const password = document.getElementById('adminPassword').value;
-        const secretKey = document.getElementById('adminSecretKey').value;
-        
-        try {
-            const res = await fetch(`${API_URL}/api/auth/admin/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, secretKey })
-            });
-            const data = await res.json();
-            if (data.success) {
-                adminToken = data.token;
-                localStorage.setItem('admin_token', adminToken);
-                document.getElementById('adminLoginModal').remove();
-                await loadPlayersFromServer();
-                addLog(`🔐 Администратор вошёл в систему`, 'success');
-            } else {
-                alert('Ошибка входа: ' + data.error);
-            }
-        } catch (err) {
-            alert('Ошибка соединения с сервером');
-        }
-    };
-}
-
-// Загрузка игроков с сервера
-async function loadPlayersFromServer() {
-    try {
-        const res = await fetch(`${API_URL}/api/admin/players`, {
-            headers: { 'Authorization': `Bearer ${adminToken}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-            window.players = data.players;
-            renderPlayers();
-            renderBans();
-            updateStatsUI();
-            addLog(`✅ Загружено ${data.players.length} игроков`, 'success');
-        }
-    } catch (err) {
-        console.error('Ошибка загрузки игроков:', err);
-        addLog(`❌ Ошибка загрузки игроков: ${err.message}`, 'error');
-    }
-}
-
-// Обновление игрока на сервере
-async function updatePlayerOnServer(playerId, data) {
-    try {
-        const res = await fetch(`${API_URL}/api/admin/players/${playerId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${adminToken}`
-            },
-            body: JSON.stringify(data)
-        });
-        const result = await res.json();
-        if (result.success) {
-            addLog(`✅ Игрок обновлён`, 'success');
-            await loadPlayersFromServer();
-            return true;
-        }
-    } catch (err) {
-        addLog(`❌ Ошибка обновления: ${err.message}`, 'error');
-    }
-    return false;
-}
-
-// Бан игрока
-async function banPlayerOnServer(playerId) {
-    try {
-        const res = await fetch(`${API_URL}/api/admin/players/${playerId}/ban`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${adminToken}` }
-        });
-        const result = await res.json();
-        if (result.success) {
-            addLog(`🚫 Игрок забанен`, 'error');
-            await loadPlayersFromServer();
-            return true;
-        }
-    } catch (err) {
-        addLog(`❌ Ошибка бана: ${err.message}`, 'error');
-    }
-    return false;
-}
-
-// Разбан игрока
-async function unbanPlayerOnServer(playerId) {
-    try {
-        const res = await fetch(`${API_URL}/api/admin/players/${playerId}/unban`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${adminToken}` }
-        });
-        const result = await res.json();
-        if (result.success) {
-            addLog(`🔓 Игрок разбанен`, 'success');
-            await loadPlayersFromServer();
-            return true;
-        }
-    } catch (err) {
-        addLog(`❌ Ошибка разбана: ${err.message}`, 'error');
-    }
-    return false;
-}
-
-// Переопределяем функции
-window.banPlayer = banPlayerOnServer;
-window.unbanPlayer = unbanPlayerOnServer;
-window.saveEdit = async function() {
-    if (editPlayerId) {
-        await updatePlayerOnServer(editPlayerId, {
-            balance: parseFloat(document.getElementById('editBalance')?.value || 0),
-            chips: parseInt(document.getElementById('editChips')?.value || 0),
-            base_power: parseFloat(document.getElementById('editHash')?.value || 0),
-            defense: parseInt(document.getElementById('editDefense')?.value || 0)
-        });
-        closeModal();
-    }
-};
-
-// Запуск
-checkAdminAuth();
-</script>
-<script>
-// Отключаем проверку авторизации — админка работает локально
-console.log('Админ-панель работает в офлайн-режиме');
 </script>
 </body>
 </html>
