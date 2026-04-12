@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>    
 <script>
 // Просто проверяем токен при загрузке игры
@@ -234,6 +235,316 @@ if (!token) {
         .trader-card:hover { border-color: #ffaa66; box-shadow: 0 2px 12px rgba(255,170,102,0.15); }
         .trade-offer-btn { background: #1a2a36; border: 1px solid #3a6f8f; border-radius: 24px; padding: 6px 16px; font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold; color: #aac9ff; cursor: pointer; transition: 0.15s; }
         .trade-offer-btn:hover { background: #2a5f7a; border-color: #ffaa66; color: #ffdd99; transform: scale(0.98); }
+        /* ========== МОБИЛЬНАЯ АДАПТАЦИЯ ========== */
+@media (max-width: 768px) {
+    body { overflow: auto; height: auto; }
+    
+    .cockpit {
+        flex-direction: column;
+        padding: 10px;
+        gap: 10px;
+        height: auto;
+    }
+    
+    .left-workspace {
+        width: 100%;
+        padding: 6px;
+        gap: 6px;
+    }
+    
+    .center-workspace {
+        flex-direction: column;
+        min-width: auto;
+        gap: 10px;
+    }
+    
+    .right-control-panel {
+        width: 100%;
+        padding: 10px;
+        gap: 8px;
+    }
+    
+    .gauges-column {
+        width: 100%;
+        gap: 8px;
+    }
+    
+    .rigs-column {
+        min-width: auto;
+    }
+    
+    .top-instruments {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .gauge {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .gauge .value {
+        font-size: 18px;
+    }
+    
+    .balance-block {
+        padding: 6px 12px;
+    }
+    
+    .balance-value {
+        font-size: 20px;
+    }
+    
+    .solana-icon {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .switch-panel {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .switch {
+        width: 50px;
+    }
+    
+    .switch .toggle {
+        width: 30px;
+        height: 45px;
+    }
+    
+    .switch .toggle:after {
+        width: 24px;
+        height: 20px;
+    }
+    
+    input:checked + .toggle:after {
+        top: 20px;
+    }
+    
+    .stick-controller {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .stick-pad {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .dummy-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .dummy-btn {
+        font-size: 10px;
+        padding: 6px 2px;
+    }
+    
+    .perf-graph {
+        padding: 8px;
+    }
+    
+    .gauge-container {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .info-value {
+        font-size: 18px;
+    }
+    
+    .ram-value {
+        font-size: 14px;
+    }
+    
+    .rigs-header h3 {
+        font-size: 14px;
+    }
+    
+    .rig-item {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .rig-name {
+        font-size: 12px;
+    }
+    
+    .rig-hash {
+        font-size: 11px;
+    }
+    
+    .total-hash .value {
+        font-size: 20px;
+    }
+    
+    .action-btn {
+        font-size: 10px;
+        padding: 5px 8px;
+    }
+    
+    .profile-btn {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+    
+    .resources-panel div div:first-child {
+        font-size: 20px;
+    }
+    
+    .resources-panel div div:last-child {
+        font-size: 10px;
+    }
+    
+    .cooling-sliders {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .cooling-slider-item input {
+        width: 100%;
+    }
+    
+    .button-row {
+        flex-wrap: wrap;
+    }
+    
+    .button-row .action-btn {
+        min-width: calc(50% - 3px);
+        font-size: 10px;
+    }
+    
+    .voltmeter-panel {
+        padding: 6px 8px;
+    }
+    
+    .voltmeter-header {
+        font-size: 9px;
+    }
+    
+    .scale-numbers span {
+        font-size: 7px;
+    }
+    
+    /* Плавающие окна на мобильных */
+    .floating-window {
+        width: 95% !important;
+        left: 2.5% !important;
+        right: 2.5% !important;
+        max-width: 95%;
+        min-width: auto;
+    }
+    
+    /* Тосты */
+    .toast {
+        width: 90vw;
+        min-width: auto;
+        font-size: 12px;
+        padding: 8px 40px 8px 16px;
+    }
+    
+    /* Модальные окна событий */
+    .event-notification {
+        width: 90%;
+        font-size: 11px;
+        padding: 12px;
+    }
+    
+    .event-icon {
+        font-size: 24px;
+    }
+    
+    .event-name {
+        font-size: 14px;
+    }
+    
+    .event-timer {
+        font-size: 20px;
+    }
+}
+
+/* Очень маленькие телефоны (до 480px) */
+@media (max-width: 480px) {
+    .gauge {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .gauge .value {
+        font-size: 14px;
+    }
+    
+    .gauge .label {
+        font-size: 8px;
+    }
+    
+    .balance-value {
+        font-size: 16px;
+    }
+    
+    .dummy-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .rig-name {
+        font-size: 10px;
+    }
+    
+    .rig-count {
+        font-size: 10px;
+    }
+    
+    .rig-hash {
+        font-size: 9px;
+    }
+    
+    .action-btn {
+        font-size: 9px;
+        padding: 4px 6px;
+    }
+    
+    .profile-btn {
+        font-size: 11px;
+    }
+    
+    .dropdown-item {
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+    
+    .window-title {
+        font-size: 12px;
+    }
+    
+    .window-content {
+        font-size: 11px;
+        padding: 10px;
+    }
+    
+    .stats-row, .weather-row {
+        font-size: 11px;
+        padding: 6px;
+    }
+    
+    .chat-messages-win div {
+        font-size: 10px;
+    }
+    
+    .chat-input-win input {
+        font-size: 10px;
+        padding: 6px;
+    }
+    
+    .chat-input-win button {
+        font-size: 10px;
+        padding: 6px 12px;
+    }
+}
     </style>
 </head>
 <body>
