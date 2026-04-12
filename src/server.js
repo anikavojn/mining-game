@@ -35,8 +35,20 @@ const io = socketIo(server, {
 // ========== ОБРАБОТЧИКИ SOCKET.IO ==========
 io.on('connection', (socket) => {
     console.log('🔌 Пользователь подключился:', socket.id);
-        // Сообщения от админа
+            // Сообщения от админа с защитой от дублей
+    let lastAdminMessage = null;
+    
     socket.on('admin_message', (data) => {
+        // Проверка на дубль (в течение 2 секунд)
+        const now = Date.now();
+        if (lastAdminMessage && 
+            lastAdminMessage.text === data.text && 
+            now - lastAdminMessage.time < 2000) {
+            return; // Игнорируем дубль
+        }
+        
+        lastAdminMessage = { text: data.text, time: now };
+        
         console.log('👑 АДМИН:', data.text);
         io.emit('admin_message', {
             username: data.username || '👑 АДМИН',

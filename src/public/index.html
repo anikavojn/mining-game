@@ -3545,15 +3545,24 @@ function renderChat(cont, wid) {
 
     // Получение сообщений от админа
 if (window.socket) {
-    window.socket.on('admin_message', (data) => {
+    // Получение сообщений от админа (без дублей и без тостов)
+window.socket.on('admin_message', (data) => {
+    // Проверяем, нет ли уже такого сообщения в чате
+    const lastMsg = chatMsgs[chatMsgs.length - 1];
+    const isDuplicate = lastMsg && 
+                        lastMsg.name === (data.username || "👑 АДМИН") && 
+                        lastMsg.text === data.text;
+    
+    if (!isDuplicate) {
         chatMsgs.push({ 
-            name: "👑 АДМИН", 
+            name: data.username || "👑 АДМИН", 
             text: data.text, 
             type: "admin" 
         });
+        if (chatMsgs.length > 200) chatMsgs.shift();
         updateMessages();
-        toast(`📢 Сообщение от администратора: ${data.text}`);
-    });
+    }
+});
 }
     
     // Настройка сокет-обработчиков (удаляем старые)
