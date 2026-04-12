@@ -22,6 +22,7 @@ const supabase = createClient(
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname + '/public'));
+app.use(express.static(__dirname + '/src/public'));
 
 console.log('✅ Supabase подключён:', process.env.SUPABASE_URL);
 
@@ -353,6 +354,123 @@ app.post('/api/admin/players/:id/unban', async (req, res) => {
         
         if (error) throw error;
         res.json({ success: true, message: `Игрок ${user.username} разбанен` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ========== АДМИН МАРШРУТЫ ==========
+
+// Проверка админ-прав (простая версия)
+const isAdmin = (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Требуется авторизация' });
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded.role === 'admin') {
+            req.isAdmin = true;
+            return next();
+        }
+    } catch (err) {}
+    
+    res.status(403).json({ error: 'Доступ запрещён' });
+};
+
+// Админ-логин
+app.post('/api/auth/admin/login', async (req, res) => {
+    const { username, password } = req.body;
+    
+    // ВРЕМЕННО: простой логин (потом можно перенести в Supabase)
+    if (username === 'admin' && password === 'admin123') {
+        const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        return res.json({ success: true, token });
+    }
+    
+    res.status(401).json({ error: 'Неверные данные' });
+});
+
+// Получить всех игроков (с защитой)
+app.get('/api/admin/players', isAdmin, async (req, res) => {
+    try {
+        const { data: players, error } = await supabase
+            .from('users')
+            .select('id, username, balance, chips, base_power, defense, is_banned, created_at')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        res.json({ success: true, players });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Редактировать игрока
+app.put('/api/admin/players/:id', isAdmin, async (req, res) => {
+    try {
+        const { balance, chips, base_power, defense, is_banned } = req.body;
+        
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ balance, chips, base_power, defense, is_banned })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        res.json({ success: true, user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Бан игрока
+app.post('/api/admin/players/:id/ban', isAdmin, async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ is_banned: true })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        res.json({ success: true, message: `Игрок ${user.username} забанен` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Разбан игрока
+app.post('/api/admin/players/:id/unban', isAdmin, async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ is_banned: false })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        res.json({ success: true, message: `Игрок ${user.username} разбанен` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Отправить сообщение всем (через Socket.IO)
+app.post('/api/admin/broadcast', isAdmin, async (req, res) => {
+    try {
+        const { message } = req.body;
+        if (message && io) {
+            io.emit('admin_message', {
+                text: message,
+                timestamp: new Date().toISOString()
+            });
+            res.json({ success: true, message: 'Сообщение отправлено' });
+        } else {
+            res.status(400).json({ error: 'Нет текста сообщения' });
+        }
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

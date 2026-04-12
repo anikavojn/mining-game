@@ -3542,6 +3542,19 @@ function renderChat(cont, wid) {
     
     // Очищаем массив сообщений
     chatMsgs = [];
+
+    // Получение сообщений от админа
+if (window.socket) {
+    window.socket.on('admin_message', (data) => {
+        chatMsgs.push({ 
+            name: "👑 АДМИН", 
+            text: data.text, 
+            type: "admin" 
+        });
+        updateMessages();
+        toast(`📢 Сообщение от администратора: ${data.text}`);
+    });
+}
     
     // Настройка сокет-обработчиков (удаляем старые)
     if (window.socket) {
