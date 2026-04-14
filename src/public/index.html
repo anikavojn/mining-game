@@ -2938,97 +2938,6 @@ createWin = function(title, html, w = 400, h = 400, l = 100, t = 100) {
     return win;
 };
 
-    closeBtn.onclick = () => win.remove();
-    
-    minimizeBtn.onclick = () => {
-        if (isMaximized) maximizeBtn.click();
-        if (isMinimized) {
-            win.style.display = 'flex';
-            isMinimized = false;
-            minimizeBtn.innerHTML = '─';
-        } else {
-            win.style.display = 'none';
-            isMinimized = true;
-            minimizeBtn.innerHTML = '□';
-        }
-    };
-    
-    maximizeBtn.onclick = () => {
-        if (isMaximized) {
-            win.classList.remove('window-maximized');
-            win.style.width = savedRect.width + 'px';
-            win.style.height = savedRect.height + 'px';
-            win.style.left = savedRect.left + 'px';
-            win.style.top = savedRect.top + 'px';
-            win.style.resize = 'both';
-            isMaximized = false;
-            maximizeBtn.innerHTML = '□';
-        } else {
-            savedRect = {
-                width: win.offsetWidth,
-                height: win.offsetHeight,
-                left: parseInt(win.style.left),
-                top: parseInt(win.style.top)
-            };
-            win.classList.add('window-maximized');
-            win.style.width = '100%';
-            win.style.height = '100%';
-            win.style.left = '0';
-            win.style.top = '0';
-            win.style.resize = 'none';
-            isMaximized = true;
-            maximizeBtn.innerHTML = '❐';
-        }
-    };
-    
-    let drag = false, startX, startY, startLeft, startTop;
-    header.onmousedown = (e) => {
-        if (e.target === minimizeBtn || e.target === maximizeBtn || e.target === closeBtn) return;
-        drag = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        startLeft = win.offsetLeft;
-        startTop = win.offsetTop;
-        document.body.style.userSelect = 'none';
-        e.preventDefault();
-    };
-    
-    let resize = false, resizeStartX, resizeStartY, resizeStartW, resizeStartH;
-    if (resizeHandle) {
-        resizeHandle.onmousedown = (e) => {
-            resize = true;
-            resizeStartX = e.clientX;
-            resizeStartY = e.clientY;
-            resizeStartW = win.offsetWidth;
-            resizeStartH = win.offsetHeight;
-            e.stopPropagation();
-            e.preventDefault();
-        };
-    }
-    
-    document.onmousemove = (e) => {
-        if (drag && !isMaximized) {
-            let newLeft = startLeft + (e.clientX - startX);
-            let newTop = startTop + (e.clientY - startY);
-            win.style.left = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, newLeft)) + 'px';
-            win.style.top = Math.max(0, Math.min(window.innerHeight - win.offsetHeight, newTop)) + 'px';
-        }
-        if (resize && !isMaximized) {
-            let newW = Math.max(250, resizeStartW + (e.clientX - resizeStartX));
-            let newH = Math.max(200, resizeStartH + (e.clientY - resizeStartY));
-            win.style.width = newW + 'px';
-            win.style.height = newH + 'px';
-        }
-    };
-    document.onmouseup = () => {
-        drag = false;
-        resize = false;
-        document.body.style.userSelect = '';
-    };
-    
-    return win;
-}
-
 // ============================================
 // 8. МАРКЕТ (С ВКЛАДКАМИ)
 // ============================================
@@ -3491,9 +3400,14 @@ if (savedUserForChat) {
     } catch(e) {}
 }
 
-// Подключаем Socket.IO
+// Подключаем Socket.IO с токеном администратора если он есть
 if (!window.socket) {
-    window.socket = io();
+    const chatToken = localStorage.getItem('mining_token');
+    const socketOptions = {};
+    if (chatToken) {
+        socketOptions.auth = { token: chatToken };
+    }
+    window.socket = io(socketOptions);
 
     // ========== ОБРАБОТЧИКИ СОКЕТА ==========
     
@@ -3508,8 +3422,10 @@ if (!window.socket) {
         console.log('✅ Чат подключён к серверу');
         if (currentUsername) {
             window.socket.emit('user_online', currentUsername);
-
-        // ========== ОЧИСТКА ЧАТА АДМИНИСТРАТОРОМ ==========
+        }
+    });
+    
+    // ========== ОЧИСТКА ЧАТА АДМИНИСТРАТОРОМ ==========
     window.socket.on('chat_cleared_by_admin', () => {
         console.log('🧹 Чат очищен администратором');
         
@@ -3534,10 +3450,6 @@ if (!window.socket) {
         }
         
         // Не показываем тост — только тихая очистка
-    });        
-
-            
-        }
     });
 }
 
@@ -5797,8 +5709,6 @@ function showWithdrawWindow() {
     cancelBtn.onclick = () => win.remove();
 }
 
-</script>
-
 // ========== АВТОРИЗАЦИЯ И ЗАГРУЗКА ПРОФИЛЯ (ИСПРАВЛЕНА) ==========
 const token = localStorage.getItem('mining_token');
 
@@ -5865,8 +5775,7 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(() => loadUserProfile(), 100);
 }
-
-</body>
+</script>
 
 <script>
 console.log('=== ЗАГРУЗКА ИГРЫ ===');
@@ -5922,9 +5831,7 @@ if (token) {
     console.log('Нет токена, редирект на логин');
     window.location.href = '/login.html';
 }
-</script>
 
-<script>
 // ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ИМЕНИ ИЗ LOCALSTORAGE
 (function() {
     const saved = localStorage.getItem('mining_user');
@@ -5952,4 +5859,5 @@ if (token) {
 })();
 </script>
 
+</body>
 </html>

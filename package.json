@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@supabase/supabase-js": "^2.103.0",
     "fs": "^0.0.1-security",
     "socket.io": "^4.8.3"
   }

@@ -55,7 +55,6 @@ global.economySettings = {
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname + '/public'));
-app.use(express.static(__dirname + '/src/public'));
 
 console.log('✅ Supabase подключён:', process.env.SUPABASE_URL);
 
@@ -527,7 +526,7 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
 
 // ========== ЗАПУСК ==========
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✅ Сервер запущен на http://localhost:${PORT}`);
     console.log(`📡 Supabase: ${process.env.SUPABASE_URL}`);
     console.log(`🔌 Socket.IO чат активен\n`);
