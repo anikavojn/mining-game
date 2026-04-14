@@ -132,7 +132,6 @@
             font-size: 12px;
             color: #ffdd99;
             font-family: 'Courier New', monospace;
-            /* Добавлено стандартное свойство appearance для совместимости */
             appearance: auto;
             -webkit-appearance: auto;
             -moz-appearance: auto;
@@ -159,7 +158,7 @@
             background: #1e2e3e;
             border-radius: 4px;
             -webkit-appearance: none;
-            appearance: none;  /* Стандартное свойство */
+            appearance: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -173,7 +172,6 @@
             box-shadow: 0 0 6px #ffaa66;
         }
 
-        /* Для Firefox */
         input[type="range"]::-moz-range-thumb {
             width: 14px;
             height: 14px;
@@ -360,7 +358,7 @@
             overflow-y: auto;
             padding: 10px;
             font-family: 'Courier New', monospace;
-            font-size: 10px;
+            font-size: 14px !important;
             border: 1px solid #2a5f7a;
             margin-bottom: 8px;
         }
@@ -371,16 +369,16 @@
         }
 
         .chat-name {
-            color: #ffaa66;
+            color: #ffaa66 !important;
             font-weight: bold;
         }
 
         .chat-name.admin {
-            color: #ff6666;
+            color: #ff6666 !important;
         }
 
         .chat-text {
-            color: #aaccee;
+            color: #ffffff !important;
         }
 
         .chat-input-area {
@@ -533,11 +531,49 @@
             background: #2a5f7a;
             border-radius: 3px;
         }
+
+        /* Принудительные цвета для чата админки */
+        #chatMessages,
+        #chatMessages *,
+        .chat-box,
+        .chat-box *,
+        .chat-message,
+        .chat-message *,
+        .chat-text,
+        .chat-name {
+            color: #ffffff !important;
+        }
+
+        .chat-name {
+            color: #ffaa66 !important;
+        }
+
+        .chat-name.admin {
+            color: #ff6666 !important;
+        }
+
+        .chat-message.admin .chat-name {
+            color: #ff6666 !important;
+        }
+
+        .chat-message.admin .chat-text {
+            color: #ffcc88 !important;
+        }
+
+        /* Увеличение шрифта в чате админки */
+        #chatMessages,
+        .chat-box,
+        .chat-message,
+        .chat-text,
+        .chat-name {
+            font-size: 14px !important;
+            line-height: 1.5 !important;
+        }
     </style>
 </head>
 <body>
 
-<div class="admin-grid">
+    <div class="admin-grid">
     <!-- КОЛОНКА 1 (ЛЕВАЯ) — Управление сервером и экономика -->
     <div class="col-left">
         <!-- Баланс блок как в игре -->
@@ -673,9 +709,10 @@
                     <div class="chat-message"><span class="chat-name admin">🔧 СИСТЕМА:</span> <span class="chat-text">Вы можете отправлять сообщения всем игрокам</span></div>
                 </div>
                 <div class="chat-input-area">
-                    <input type="text" id="chatInput" placeholder="Введите сообщение для всех игроков..." maxlength="200">
-                    <button class="btn btn-sm btn-primary" id="sendChatBtn">📨 ОТПРАВИТЬ</button>
-                </div>
+    <input type="text" id="chatInput" placeholder="Введите сообщение для всех игроков..." maxlength="200">
+    <button class="btn btn-sm btn-primary" id="sendChatBtn">📨 ОТПРАВИТЬ</button>
+    <button class="btn btn-sm btn-danger" id="clearChatBtn">🗑️ ОЧИСТИТЬ ЧАТ</button>
+</div>
                 <div style="font-size: 9px; color: #6f9fbf; margin-top: 8px; text-align: center;">
                     💡 Сообщения видны всем активным игрокам
                 </div>
@@ -742,43 +779,21 @@
 
 <script>
     // ========== ДАННЫЕ ==========
+    
     let players = [];
     let bannedList = [];
     let backups = [];
+    
     let activeGlobalEvent = null;
     let eventTimer = null;
     let eventCount = 0;
     let editPlayerId = null;
     let adminToken = localStorage.getItem('admin_token');
+    
     const API_URL = '';  // Пустая строка = относительные пути
 
     // Подключаем сокет для админки
-// Подключение сокета для админки
-let adminSocket = null;
-
-function initAdminSocket() {
-    const socketUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3000' 
-        : 'https://mining-game-818s.onrender.com';
-    
-    adminSocket = io(socketUrl);
-    
-    adminSocket.on('connect', () => {
-        addLog(`✅ Сокет подключён, можно отправлять сообщения`, 'success');
-    });
-    
-    adminSocket.on('connect_error', (err) => {
-        addLog(`❌ Ошибка сокета: ${err.message}`, 'error');
-    });
-    
-    // Получение своих сообщений (для отображения в админке)
-    adminSocket.on('admin_message', (data) => {
-        addChatMessage(data.username || "👑 АДМИН", data.text, "admin");
-    });
-}
-
-// Вызови после входа в админку
-connectAdminSocket();
+    let adminSocket = null;
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
     function showToast(msg) {
@@ -811,10 +826,21 @@ connectAdminSocket();
         document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString();
     }
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
     // ========== РАБОТА С СЕРВЕРОМ ==========
     async function loadPlayersFromServer() {
         try {
             const headers = adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {};
+            console.log('🔑 Загрузка игроков с токеном:', adminToken);
             const res = await fetch(`${API_URL}/api/admin/players`, { headers });
             const data = await res.json();
             if (data.success) {
@@ -934,16 +960,6 @@ connectAdminSocket();
         `).join('');
     }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-
     function openEdit(id) {
         const p = players.find(x => x.id === id);
         if (!p) return;
@@ -988,6 +1004,181 @@ connectAdminSocket();
             await unbanPlayerOnServer(id);
         }
     }
+
+        // ========== СОКЕТ ДЛЯ АДМИНКИ ==========
+    
+function initAdminSocket() {
+    const socketUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000' 
+        : 'https://mining-game-818s.onrender.com';
+    
+    console.log('🔌 Подключение к сокету:', socketUrl);
+    adminSocket = io(socketUrl, {
+        auth: {
+            token: adminToken  // ← ПЕРЕДАЁМ ТОКЕН ДЛЯ ПРОВЕРКИ АДМИНА
+        }
+    });
+    
+    adminSocket.on('connect', () => {
+        console.log('✅ Сокет подключён');
+        addLog(`✅ Сокет подключён, запрашиваю историю чата...`, 'success');
+        
+        // ЗАПРАШИВАЕМ ИСТОРИЮ ПРИ ПОДКЛЮЧЕНИИ
+        adminSocket.emit('request_history');
+    });
+    
+    adminSocket.on('connect_error', (err) => {
+        console.error('❌ Ошибка сокета:', err.message);
+        addLog(`❌ Ошибка сокета: ${err.message}`, 'error');
+    });
+    
+    // ========== ПОЛУЧЕНИЕ ИСТОРИИ ЧАТА ==========
+    adminSocket.on('chat_history', (history) => {
+        console.log('📜 Админ получил историю чата:', history?.length || 0, 'сообщений');
+        
+        if (history && Array.isArray(history)) {
+            chatMessages = [];
+            
+            history.forEach(msg => {
+                const isAdmin = msg.isAdmin || (msg.username === '👑 АДМИН');
+                const name = msg.username || msg.name;
+                const text = msg.message || msg.text;
+                
+                chatMessages.push({
+                    name: name,
+                    text: text,
+                    type: isAdmin ? 'admin' : 'player'
+                });
+            });
+            
+            if (chatMessages.length === 0) {
+                chatMessages.push({ name: "🔧 СИСТЕМА", text: "История чата пуста", type: "system" });
+            }
+            
+            renderChat();
+            addLog(`📜 Загружено ${history.length} сообщений из истории`, 'success');
+
+                // ОЧИСТКА ЧАТА (получаем подтверждение от сервера)
+    adminSocket.on('chat_cleared_by_admin', () => {
+        console.log('🧹 Админка: чат очищен');
+        chatMessages = [];
+        chatMessages.push({ name: "🔧 СИСТЕМА", text: "Чат очищен администратором", type: "system" });
+        renderChat();
+    });
+        }
+    });
+    
+    // ========== ОБЫЧНЫЕ СООБЩЕНИЯ ОТ ИГРОКОВ ==========
+    adminSocket.on('chat_message', (data) => {
+        console.log('💬 Получено сообщение от игрока:', data);
+        addChatMessage(data.username, data.message, "player");
+        addLog(`💬 ИГРОК ${data.username}: "${data.message}"`, 'info');
+    });
+    
+    // ========== АДМИНСКИЕ СООБЩЕНИЯ ==========
+    adminSocket.on('admin_message', (data) => {
+        console.log('📢 Получено админ-сообщение:', data);
+        const name = data.username || '👑 АДМИН';
+        const text = data.text;
+        
+        const lastMsg = chatMessages[chatMessages.length - 1];
+        if (lastMsg && lastMsg.name === name && lastMsg.text === text) {
+            console.log('🔄 Дубль игнорирован');
+            return;
+        }
+        
+        addChatMessage(name, text, "admin");
+        addLog(`📢 ${name}: "${text}"`, 'success');
+    });
+}
+
+// Очистка чата админки
+window.clearChat = function() {
+    if (confirm('Очистить историю чата в админ-панели? (сообщения у игроков останутся)')) {
+        // Очищаем массив сообщений
+        chatMessages = [];
+        
+        // Добавляем системное сообщение
+        chatMessages.push({ 
+            name: "🔧 СИСТЕМА", 
+            text: "История чата очищена администратором", 
+            type: "system" 
+        });
+        
+        // Перерисовываем чат
+        if (typeof renderChat === 'function') {
+            renderChat();
+        }
+        
+        // Логируем действие
+        if (typeof addLog === 'function') {
+            addLog(`🗑️ История чата в админке очищена`, 'warning');
+        }
+        if (typeof showToast === 'function') {
+            showToast(`🗑️ Чат админки очищен`);
+        }
+        
+        console.log('✅ Чат админки очищен');
+    }
+};
+
+    // ========== ЧАТ ==========
+    let chatMessages = [
+        { name: "🔧 СИСТЕМА", text: "Админ-чат активен", type: "system" }
+    ];
+
+    function renderChat() {
+        const container = document.getElementById('chatMessages');
+        if (!container) return;
+        container.innerHTML = chatMessages.map(msg => `
+            <div class="chat-message ${msg.type === 'admin' ? 'admin' : ''}">
+                <span class="chat-name ${msg.type === 'system' ? 'admin' : ''}">${msg.name}:</span>
+                <span class="chat-text"> ${msg.text}</span>
+            </div>
+        `).join('');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function addChatMessage(name, text, type = "admin") {
+        chatMessages.push({ name, text, type });
+        if (chatMessages.length > 100) chatMessages.shift();
+        renderChat();
+    }
+
+    // Отправка сообщений в игру (с защитой от дублей)
+    let lastSentMsg = '';
+    let lastSentTime = 0;
+
+    function sendAdminMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input?.value.trim();
+    if (!text) return;
+    
+    const now = Date.now();
+    if (lastSentMsg === text && now - lastSentTime < 3000) {
+        console.log('🔄 Дубль отправки игнорирован');
+        return;
+    }
+    lastSentMsg = text;
+    lastSentTime = now;
+    
+    if (adminSocket && adminSocket.connected) {
+        // Отправляем на сервер
+        adminSocket.emit('admin_message', {
+            text: text,
+            username: '👑 АДМИН'
+        });
+        
+        // ❌ НЕ ДОБАВЛЯЕМ ЛОКАЛЬНО — ждём от сервера
+        // addChatMessage("👑 АДМИН", text, "admin");  ← УБРАТЬ ЭТУ СТРОКУ!
+        
+        addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
+        input.value = '';
+    } else {
+        addLog(`❌ Сокет не подключён. Попробуйте обновить страницу.`, 'error');
+        showToast(`❌ Сокет не подключён`);
+    }
+}
 
     // ========== АДМИН ЛОГИН ==========
     function showAdminLogin() {
@@ -1039,49 +1230,6 @@ connectAdminSocket();
         }
         await loadPlayersFromServer();
         return true;
-    }
-
-    // ========== TABS ==========
-    function initTabs() {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.dataset.tab;
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                document.querySelectorAll('#tabList, #tabSearch, #tabBans').forEach(p => p.classList.remove('active'));
-                if (tab === 'list') document.getElementById('tabList').classList.add('active');
-                if (tab === 'search') document.getElementById('tabSearch').classList.add('active');
-                if (tab === 'bans') document.getElementById('tabBans').classList.add('active');
-            });
-        });
-    }
-
-    function toggleCard(header) {
-        const body = header.closest('.card').querySelector('.card-body');
-        const arrow = header.querySelector('span');
-        body.classList.toggle('collapsed');
-        arrow.innerHTML = body.classList.contains('collapsed') ? '▲' : '▼';
-    }
-
-    // ========== ПОИСК ==========
-    function searchPlayers() {
-        const query = document.getElementById('searchInput')?.value.toLowerCase();
-        const resultDiv = document.getElementById('searchResult');
-        if (!query || !resultDiv) return;
-        const found = players.filter(p => !p.is_banned && (p.username.toLowerCase().includes(query) || p.id.toString().includes(query)));
-        if (!found.length) {
-            resultDiv.innerHTML = '<div style="color:#ff8888; text-align:center;">❌ Не найдено</div>';
-            return;
-        }
-        resultDiv.innerHTML = found.map(p => `
-            <div class="player-card">
-                <div><div class="player-name">${escapeHtml(p.username)}</div><div class="player-detail">${p.base_power || 0} TH/s | ${(p.balance || 0).toFixed(8)} SOL</div></div>
-                <div class="player-actions">
-                    <button class="btn btn-sm" onclick="openEdit(${p.id})">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="banPlayer(${p.id})">🚫</button>
-                </div>
-            </div>
-        `).join('');
     }
 
     // ========== ГЛОБАЛЬНЫЕ СОБЫТИЯ ==========
@@ -1167,72 +1315,259 @@ connectAdminSocket();
         if (pvpChance) pvpChance.oninput = () => document.getElementById('pvpVal').innerText = pvpChance.value + '%';
     }
 
-    // ========== ОТПРАВКА СООБЩЕНИЙ ==========
-    function sendAdminMessage() {
-    const input = document.getElementById('chatInput');
-    const text = input?.value.trim();
-    if (!text) return;
-    
-    if (adminSocket && adminSocket.connected) {
-        // Отправляем сообщение
-        adminSocket.emit('admin_message', {
-            text: text,
-            username: '👑 АДМИН'
+    // ========== TABS ==========
+    function initTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('#tabList, #tabSearch, #tabBans').forEach(p => p.classList.remove('active'));
+                if (tab === 'list') document.getElementById('tabList').classList.add('active');
+                if (tab === 'search') document.getElementById('tabSearch').classList.add('active');
+                if (tab === 'bans') document.getElementById('tabBans').classList.add('active');
+            });
         });
-        
-        // Сразу показываем в админке
-        addChatMessage("👑 АДМИН", text, "admin");
-        addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
-        input.value = '';
-    } else {
-        addLog(`❌ Сокет не подключён. Попробуйте обновить страницу.`, 'error');
-        showToast(`❌ Сокет не подключён`);
     }
-}
 
-    // ========== ЧАТ ==========
-    let chatMessages = [
-        { name: "🔧 СИСТЕМА", text: "Админ-чат активен", type: "system" }
-    ];
+    function toggleCard(header) {
+        const body = header.closest('.card').querySelector('.card-body');
+        const arrow = header.querySelector('span');
+        body.classList.toggle('collapsed');
+        arrow.innerHTML = body.classList.contains('collapsed') ? '▲' : '▼';
+    }
 
-    function renderChat() {
-        const container = document.getElementById('chatMessages');
-        if (!container) return;
-        container.innerHTML = chatMessages.map(msg => `
-            <div class="chat-message">
-                <span class="chat-name ${msg.type === 'system' ? 'admin' : ''}">${msg.name}:</span>
-                <span class="chat-text"> ${msg.text}</span>
+    // ========== ПОИСК ==========
+    function searchPlayers() {
+        const query = document.getElementById('searchInput')?.value.toLowerCase();
+        const resultDiv = document.getElementById('searchResult');
+        if (!query || !resultDiv) return;
+        const found = players.filter(p => !p.is_banned && (p.username.toLowerCase().includes(query) || p.id.toString().includes(query)));
+        if (!found.length) {
+            resultDiv.innerHTML = '<div style="color:#ff8888; text-align:center;">❌ Не найдено</div>';
+            return;
+        }
+        resultDiv.innerHTML = found.map(p => `
+            <div class="player-card">
+                <div><div class="player-name">${escapeHtml(p.username)}</div><div class="player-detail">${p.base_power || 0} TH/s | ${(p.balance || 0).toFixed(8)} SOL</div></div>
+                <div class="player-actions">
+                    <button class="btn btn-sm" onclick="openEdit(${p.id})">✏️</button>
+                    <button class="btn btn-sm btn-danger" onclick="banPlayer(${p.id})">🚫</button>
+                </div>
             </div>
         `).join('');
-        container.scrollTop = container.scrollHeight;
     }
 
-    function addChatMessage(name, text, type = "admin") {
-        chatMessages.push({ name, text, type });
-        if (chatMessages.length > 100) chatMessages.shift();
-        renderChat();
+    // ========== ДИАГНОСТИЧЕСКАЯ ФУНКЦИЯ ==========
+    async function testApiConnection() {
+        console.log('🔧 ТЕСТ СОЕДИНЕНИЯ С СЕРВЕРОМ');
+        console.log('🔧 API_URL:', API_URL);
+        console.log('🔧 adminToken:', adminToken ? 'Есть' : 'Нет');
+        
+        try {
+            console.log('🔧 Тест 1: Пинг сервера...');
+            const pingRes = await fetch(`${API_URL}/api/health`);
+            console.log('  Статус:', pingRes.status);
+            const pingData = await pingRes.json();
+            console.log('  Ответ:', pingData);
+            
+            if (adminToken) {
+                console.log('🔧 Тест 2: Проверка токена...');
+                const authRes = await fetch(`${API_URL}/api/admin/players`, {
+                    headers: { 'Authorization': `Bearer ${adminToken}` }
+                });
+                console.log('  Статус:', authRes.status);
+                const authData = await authRes.json();
+                console.log('  Успех:', authData.success);
+                console.log('  Игроков:', authData.players?.length || 0);
+            }
+        } catch (err) {
+            console.error('❌ Ошибка теста:', err);
+        }
     }
 
-    // ========== ИНИЦИАЛИЗАЦИЯ ==========
-    function bindEvents() {
-        document.getElementById('sendMsgBtn')?.addEventListener('click', () => {
+   // ========== ИНИЦИАЛИЗАЦИЯ ==========
+function bindEvents() {
+    // Кнопка отправки системного сообщения
+    const sendMsgBtn = document.getElementById('sendMsgBtn');
+    if (sendMsgBtn) {
+        sendMsgBtn.addEventListener('click', () => {
             const msg = document.getElementById('sysMsg')?.value.trim();
             if (msg) {
                 addLog(`📡 ГЛОБАЛЬНОЕ СООБЩЕНИЕ: "${msg}"`, 'success');
                 showToast(`📡 Сообщение отправлено`);
-                if (document.getElementById('sysMsg')) document.getElementById('sysMsg').value = '';
+                const sysMsg = document.getElementById('sysMsg');
+                if (sysMsg) sysMsg.value = '';
             }
         });
+    }
+    
+    // КНОПКА ОЧИСТКИ ЧАТА (БЕЗ ПОДТВЕРЖДЕНИЯ)
+const clearChatBtn = document.getElementById('clearChatBtn');
+if (clearChatBtn) {
+    clearChatBtn.addEventListener('click', function() {
+        if (confirm('Очистить чат у ВСЕХ игроков?')) {
+            if (adminSocket && adminSocket.connected) {
+                adminSocket.emit('clear_chat_for_all');
+                addLog('🧹 Отправлена команда очистки чата для всех игроков', 'warning');
+                showToast('✅ Команда отправлена');
+            } else {
+                showToast('❌ Нет соединения с сервером');
+            }
+        }
+    });
+}
+    
+    // Кнопки событий
+    const startEventBtn = document.getElementById('startEventBtn');
+    if (startEventBtn) startEventBtn.addEventListener('click', startGlobalEvent);
+    
+    const stopEventBtn = document.getElementById('stopEventBtn');
+    if (stopEventBtn) stopEventBtn.addEventListener('click', stopGlobalEvent);
+    
+    // Кнопка экономики
+    const applyEconomyBtn = document.getElementById('applyEconomyBtn');
+    if (applyEconomyBtn) {
+        applyEconomyBtn.addEventListener('click', async () => {
+            const shareReward = parseFloat(document.getElementById('shareReward')?.value || 0);
+            const blockReward = parseFloat(document.getElementById('blockReward')?.value || 0);
+            const chipsReward = parseInt(document.getElementById('chipsReward')?.value || 0);
+            const sellTax = parseInt(document.getElementById('sellTax')?.value || 0);
+            
+            try {
+                const res = await fetch(`${API_URL}/api/admin/economy`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({ shareReward, blockReward, chipsReward, sellTax })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    addLog(`💰 Экономика обновлена`, 'success');
+                    showToast(`💾 Экономика обновлена`);
+                } else {
+                    addLog(`❌ Ошибка: ${data.error}`, 'error');
+                }
+            } catch (err) {
+                addLog(`❌ Ошибка: ${err.message}`, 'error');
+            }
+        });
+    }
+    
+    // Балансировка
+    const applyBalanceBtn = document.getElementById('applyBalanceBtn');
+    if (applyBalanceBtn) {
+        applyBalanceBtn.addEventListener('click', () => {
+            addLog(`⚖️ Балансировка применена`, 'success');
+            showToast(`⚙️ Балансировка обновлена`);
+        });
+    }
+    
+    // Бэкапы
+    const backupBtn = document.getElementById('backupBtn');
+    if (backupBtn) backupBtn.addEventListener('click', createBackup);
+    
+    const restoreBtn = document.getElementById('restoreBtn');
+    if (restoreBtn) restoreBtn.addEventListener('click', restoreBackup);
+    
+    const resetGameBtn = document.getElementById('resetGameBtn');
+    if (resetGameBtn) resetGameBtn.addEventListener('click', resetGame);
+    
+    // Логи
+    const clearLogsBtn = document.getElementById('clearLogsBtn');
+    if (clearLogsBtn) {
+        clearLogsBtn.addEventListener('click', () => {
+            const container = document.getElementById('logContainer');
+            if (container) container.innerHTML = '';
+            addLog(`Логи очищены`, 'info');
+        });
+    }
+    
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) refreshBtn.addEventListener('click', () => {
+        loadPlayersFromServer();
+        addLog(`🔄 Данные обновлены`, 'success');
+    });
+    
+    // Поиск
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) searchBtn.addEventListener('click', searchPlayers);
+    
+    const saveEditBtn = document.getElementById('saveEditBtn');
+    if (saveEditBtn) saveEditBtn.addEventListener('click', saveEdit);
+    
+    // Чат
+    const sendChatBtn = document.getElementById('sendChatBtn');
+    if (sendChatBtn) sendChatBtn.addEventListener('click', sendAdminMessage);
+    
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendAdminMessage();
+        });
+    }
+    
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchPlayers();
+        });
+    }
+}
+        
         document.getElementById('startEventBtn')?.addEventListener('click', startGlobalEvent);
         document.getElementById('stopEventBtn')?.addEventListener('click', stopGlobalEvent);
-        document.getElementById('applyEconomyBtn')?.addEventListener('click', () => {
-            addLog(`💰 Настройки экономики применены`, 'success');
-            showToast(`💾 Экономика обновлена`);
+        
+        // ОБРАБОТЧИК ЭКОНОМИКИ С ОТЛАДКОЙ
+        document.getElementById('applyEconomyBtn')?.addEventListener('click', async () => {
+            console.log('🔧 ===== НАЧАЛО ОТПРАВКИ ЭКОНОМИКИ =====');
+            console.log('🔧 Кнопка нажата');
+            console.log('🔧 adminToken существует?', !!adminToken);
+            console.log('🔧 adminToken:', adminToken ? `${adminToken.substring(0, 20)}...` : 'ОТСУТСТВУЕТ');
+            
+            const shareReward = parseFloat(document.getElementById('shareReward')?.value || 0);
+            const blockReward = parseFloat(document.getElementById('blockReward')?.value || 0);
+            const chipsReward = parseInt(document.getElementById('chipsReward')?.value || 0);
+            const sellTax = parseInt(document.getElementById('sellTax')?.value || 0);
+            
+            console.log('🔧 Данные для отправки:', { shareReward, blockReward, chipsReward, sellTax });
+            
+            try {
+                const res = await fetch(`${API_URL}/api/admin/economy`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${adminToken}`
+                    },
+                    body: JSON.stringify({ shareReward, blockReward, chipsReward, sellTax })
+                });
+                
+                console.log('🔧 Статус ответа:', res.status);
+                const data = await res.json();
+                console.log('🔧 Ответ сервера:', data);
+                
+                if (data.success) {
+                    addLog(`💰 Настройки экономики применены: шара=${shareReward} SOL, блок=${blockReward} SOL, чипы=${chipsReward}, налог=${sellTax}%`, 'success');
+                    showToast(`💾 Экономика обновлена`);
+                } else {
+                    addLog(`❌ Ошибка: ${data.error}`, 'error');
+                    showToast(`❌ Ошибка обновления экономики`);
+                }
+            } catch (err) {
+                console.error('❌ Ошибка:', err);
+                addLog(`❌ Ошибка: ${err.message}`, 'error');
+                showToast(`❌ Ошибка соединения`);
+            }
+            console.log('🔧 ===== КОНЕЦ ОТПРАВКИ =====');
         });
+        
         document.getElementById('applyBalanceBtn')?.addEventListener('click', () => {
             addLog(`⚖️ Балансировка применена`, 'success');
             showToast(`⚙️ Балансировка обновлена`);
         });
+        
         document.getElementById('backupBtn')?.addEventListener('click', createBackup);
         document.getElementById('restoreBtn')?.addEventListener('click', restoreBackup);
         document.getElementById('resetGameBtn')?.addEventListener('click', resetGame);
@@ -1250,25 +1585,7 @@ connectAdminSocket();
         document.getElementById('sendChatBtn')?.addEventListener('click', sendAdminMessage);
         document.getElementById('chatInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendAdminMessage(); });
         document.getElementById('searchInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchPlayers(); });
-    }
-
-    // ========== ЗАПУСК ==========
-    window.openEdit = openEdit;
-    window.banPlayer = banPlayer;
-    window.unbanPlayer = unbanPlayer;
-    window.closeModal = closeModal;
-    window.toggleCard = toggleCard;
-
-    function init() {
-        bindSliders();
-        initTabs();
-        bindEvents();
-        renderChat();
-        loadBackupsFromStorage();
-        initAdminSocket(); 
-        checkAdminAuth();
-        addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
-    }
+    
 
     function loadBackupsFromStorage() {
         const saved = localStorage.getItem('admin_backups');
@@ -1281,7 +1598,45 @@ connectAdminSocket();
         }
     }
 
+    // Глобальные функции для onclick
+    window.openEdit = openEdit;
+    window.banPlayer = banPlayer;
+    window.unbanPlayer = unbanPlayer;
+    window.closeModal = closeModal;
+    window.toggleCard = toggleCard;
+    window.testApiConnection = testApiConnection;
+
+    // ДЕБАГ В КОНСОЛИ
+    window.adminDebug = {
+        players: () => console.log('Игроки:', players),
+        token: () => console.log('Токен:', adminToken),
+        socket: () => console.log('Сокет подключен:', adminSocket?.connected),
+        testApi: testApiConnection,
+        economy: () => {
+            console.log('Текущие значения полей экономики:');
+            console.log('  shareReward:', document.getElementById('shareReward')?.value);
+            console.log('  blockReward:', document.getElementById('blockReward')?.value);
+            console.log('  chipsReward:', document.getElementById('chipsReward')?.value);
+            console.log('  sellTax:', document.getElementById('sellTax')?.value);
+        }
+    };
+
+    // ЗАПУСК
+    function init() {
+        console.log('🚀 Инициализация админ-панели...');
+        bindSliders();
+        initTabs();
+        bindEvents();
+        renderChat();
+        loadBackupsFromStorage();
+        initAdminSocket();
+        checkAdminAuth();
+        addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
+        console.log('✅ Инициализация завершена');
+    }
+
     init();
 </script>
+
 </body>
 </html>
