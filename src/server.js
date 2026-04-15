@@ -527,8 +527,9 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
 
 // ========== ЗАПУСК ==========
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`✅ Сервер запущен на порту ${PORT}`);
+  console.log('🔌 Socket.IO чат активен');
   console.log('JWT_SECRET loaded:', !!process.env.JWT_SECRET);
-console.log('ADMIN_SECRET_KEY loaded:', !!process.env.ADMIN_SECRET_KEY);
+  console.log('ADMIN_SECRET_KEY loaded:', !!process.env.ADMIN_SECRET_KEY);
 });
