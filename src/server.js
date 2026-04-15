@@ -275,7 +275,7 @@ app.post('/api/auth/admin/login', async (req, res) => {
     const { username, password } = req.body;
     
     if (username === 'admin' && password === 'admin123') {
-        const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '365d' });
         return res.json({ success: true, token });
     }
     
@@ -527,8 +527,8 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
 
 // ========== ЗАПУСК ==========
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`\n✅ Сервер запущен на http://localhost:${PORT}`);
-    console.log(`📡 Supabase: ${process.env.SUPABASE_URL}`);
-    console.log(`🔌 Socket.IO чат активен\n`);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log('JWT_SECRET loaded:', !!process.env.JWT_SECRET);
+console.log('ADMIN_SECRET_KEY loaded:', !!process.env.ADMIN_SECRET_KEY);
 });
