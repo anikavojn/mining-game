@@ -3498,6 +3498,11 @@ if (!window.socket) {
     // ========== ОБРАБОТЧИКИ СОКЕТА ==========
     
     // Получение обновлений экономики от админа
+    window.socket.on('force_reload', () => {
+    location.reload();
+});
+
+
     window.socket.on('economy_update', (settings) => {
         console.log('💰 Экономика обновлена администратором:', settings);
         window.economySettings = settings;

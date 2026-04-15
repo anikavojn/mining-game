@@ -72,31 +72,36 @@ io.on('connection', (socket) => {
     let lastAdminMessages = new Map();
 
     // ========== ОЧИСТКА ЧАТА ДЛЯ ВСЕХ (АДМИН) ==========
-    socket.on('clear_chat_for_all', (data) => {
-        console.log('📡 ПОЛУЧЕНО clear_chat_for_all от:', socket.id);
-        
-        const token = socket.handshake.auth.token;
-        if (!token) {
-            console.log('❌ Нет токена');
+socket.on('clear_chat_for_all', (data) => {
+    console.log('📡 ПОЛУЧЕНО clear_chat_for_all от:', socket.id);
+    
+    const token = socket.handshake.auth.token;
+    if (!token) {
+        console.log('❌ Нет токена');
+        return;
+    }
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded.role !== 'admin') {
+            console.log('❌ Не админ, роль:', decoded.role);
             return;
         }
         
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            if (decoded.role !== 'admin') {
-                console.log('❌ Не админ, роль:', decoded.role);
-                return;
-            }
-            
-            chatHistory = [];
-            saveHistory();
-            io.emit('chat_cleared_by_admin');
-            console.log('🧹 Чат очищен для всех админом');
-            
-        } catch (err) {
-            console.log('❌ Ошибка токена:', err.message);
-        }
-    });
+        // Очищаем историю
+        chatHistory = [];
+        fs.writeFileSync(HISTORY_FILE, JSON.stringify([], null, 2));
+        
+        // Отправляем событие очистки + принудительную перезагрузку
+        io.emit('chat_cleared_by_admin');
+        io.emit('force_reload');
+        
+        console.log('🧹 Чат очищен, игроки будут перезагружены');
+        
+    } catch (err) {
+        console.log('❌ Ошибка токена:', err.message);
+    }
+});
     
     // ========== АДМИН-ЧАТ ==========
     socket.on('admin_message', (data) => {
@@ -527,9 +532,7 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
 
 // ========== ЗАПУСК ==========
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`✅ Сервер запущен на порту ${PORT}`);
-  console.log('🔌 Socket.IO чат активен');
-  console.log('JWT_SECRET loaded:', !!process.env.JWT_SECRET);
-  console.log('ADMIN_SECRET_KEY loaded:', !!process.env.ADMIN_SECRET_KEY);
+server.listen(PORT, '0.0.0.0', () => {  // ← '0.0.0.0' важно для Render
+    console.log(`✅ Сервер запущен на порту ${PORT}`);
+    console.log('🔌 Socket.IO чат активен');
 });

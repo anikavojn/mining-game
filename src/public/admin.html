@@ -1030,7 +1030,14 @@ function logout() {
         // ========== СОКЕТ ДЛЯ АДМИНКИ ==========
     
 function initAdminSocket() {
-    const socketUrl = 'https://mining-game-818s.onrender.com';
+    // Автоматически определяем URL сокета
+    let socketUrl;
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        socketUrl = 'http://localhost:3000';
+    } else {
+        socketUrl = window.location.origin;  // Берёт текущий URL на Render
+    }
+    
     console.log('🔌 Подключение к сокету:', socketUrl);
     adminSocket = io(socketUrl, {
         auth: {
