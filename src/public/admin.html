@@ -761,10 +761,32 @@
 
         <!-- Статус бар -->
         <div class="status-bar">
-            <div><span class="dot"></span> АДМИН АКТИВЕН</div>
-            <div>🕐 <span id="lastUpdate">--:--:--</span></div>
-            <div>🔒 ПОЛНЫЙ КОНТРОЛЬ</div>
-        </div>
+    <div><span class="dot"></span> АДМИН АКТИВЕН</div>
+    <div>🕐 <span id="lastUpdate">--:--:--</span></div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <span>🔒 ПОЛНЫЙ КОНТРОЛЬ</span>
+        <button onclick="logout()" style="
+    background: #2a1a1a;
+    border: 1px solid #ff6666;
+    color: #ffaaaa;
+    padding: 4px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: bold;
+">🔓 ВЫХОД</button>
+
+<script>
+function logout() {
+    if (confirm('Выйти из админ-панели?')) {
+        localStorage.removeItem('admin_token');
+        location.reload();
+    }
+}
+</script>
+    </div>
+</div>
     </div>
 </div>
 
@@ -1015,7 +1037,7 @@ function initAdminSocket() {
     console.log('🔌 Подключение к сокету:', socketUrl);
     adminSocket = io(socketUrl, {
         auth: {
-            token: adminToken  // ← ПЕРЕДАЁМ ТОКЕН ДЛЯ ПРОВЕРКИ АДМИНА
+            token: localStorage.getItem('admin_token')
         }
     });
     
@@ -1182,55 +1204,77 @@ window.clearChat = function() {
 
     // ========== АДМИН ЛОГИН ==========
     function showAdminLogin() {
-        const loginHtml = `
-            <div id="adminLoginModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; align-items: center; justify-content: center;">
-                <div style="background: #0f1419; border: 2px solid #ff6666; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px;">
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <div style="font-size: 20px; font-weight: bold; color: #ff6666;">👑 АДМИН ПАНЕЛЬ</div>
-                        <div style="font-size: 12px; color: #8cc9ff;">Вход в систему управления</div>
-                    </div>
-                    <input type="text" id="adminUsername" placeholder="Логин" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                    <input type="password" id="adminPassword" placeholder="Пароль" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                    <button id="adminLoginBtn" style="width: 100%; padding: 12px; background: #8a2a2a; border: 2px solid #ff6666; color: white; border-radius: 40px; font-weight: bold; cursor: pointer;">ВОЙТИ</button>
+    const loginHtml = `
+        <div id="adminLoginModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; align-items: center; justify-content: center;">
+            <div style="background: #0f1419; border: 2px solid #ff6666; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 20px; font-weight: bold; color: #ff6666;">👑 АДМИН ПАНЕЛЬ</div>
+                    <div style="font-size: 12px; color: #8cc9ff;">Вход в систему управления</div>
                 </div>
+                <input type="text" id="adminUsername" placeholder="Логин" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
+                <input type="password" id="adminPassword" placeholder="Пароль" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
+                <button id="adminLoginBtn" style="width: 100%; padding: 12px; background: #8a2a2a; border: 2px solid #ff6666; color: white; border-radius: 40px; font-weight: bold; cursor: pointer;">ВОЙТИ</button>
             </div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', loginHtml);
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loginHtml);
+    
+    document.getElementById('adminLoginBtn').onclick = async () => {
+        const username = document.getElementById('adminUsername').value;
+        const password = document.getElementById('adminPassword').value;
         
-        document.getElementById('adminLoginBtn').onclick = async () => {
-            const username = document.getElementById('adminUsername').value;
-            const password = document.getElementById('adminPassword').value;
-            
-            try {
-                const res = await fetch(`${API_URL}/api/auth/admin/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    adminToken = data.token;
-                    localStorage.setItem('admin_token', adminToken);
-                    document.getElementById('adminLoginModal').remove();
-                    await loadPlayersFromServer();
-                    addLog(`🔐 Администратор вошёл`, 'success');
-                } else {
-                    alert('Ошибка входа: ' + data.error);
-                }
-            } catch (err) {
-                alert('Ошибка соединения с сервером');
+        try {
+            const res = await fetch(`${API_URL}/api/auth/admin/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.setItem('admin_token', data.token);
+                document.getElementById('adminLoginModal').remove();
+                adminToken = localStorage.getItem('admin_token');
+                await loadPlayersFromServer();
+                addLog(`🔐 Администратор вошёл`, 'success');
+                if (adminSocket) adminSocket.disconnect();
+                initAdminSocket();
+            } else {
+                alert('Ошибка входа: ' + data.error);
             }
-        };
-    }
+        } catch (err) {
+            alert('Ошибка соединения с сервером');
+        }
+    };
+}
 
     async function checkAdminAuth() {
-        if (!adminToken) {
-            showAdminLogin();
-            return false;
-        }
-        await loadPlayersFromServer();
-        return true;
+  const token = localStorage.getItem('admin_token');  
+  if (!token) return false;
+  
+  // Проверка токена
+  const response = await fetch('/api/admin/players', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  if (response.status === 403) {
+    // Токен не работает — удаляем и просим войти
+    localStorage.removeItem('admin_token');
+    alert('Сессия истекла, войдите заново');
+    return false;
+  }
+  return true;
+}
+
+function clearChatForAll() {
+    console.log('🧹 Отправлена команда очистки чата для всех игроков');
+    if (adminSocket && adminSocket.connected) {
+        adminSocket.emit('clear_chat_for_all', {}, {
+            auth: { token: localStorage.getItem('admin_token') }
+        });
+    } else {
+        addLog('❌ Сокет не подключён', 'error');
     }
+}
 
     // ========== ГЛОБАЛЬНЫЕ СОБЫТИЯ ==========
     function startGlobalEvent() {
@@ -1403,20 +1447,23 @@ function bindEvents() {
         });
     }
     
-    // КНОПКА ОЧИСТКИ ЧАТА (БЕЗ ПОДТВЕРЖДЕНИЯ)
+    // КНОПКА ОЧИСТКИ ЧАТА
 const clearChatBtn = document.getElementById('clearChatBtn');
 if (clearChatBtn) {
-    clearChatBtn.addEventListener('click', function() {
+    clearChatBtn.onclick = function() {
+        console.log('🔘 Кнопка очистки чата нажата');
         if (confirm('Очистить чат у ВСЕХ игроков?')) {
+            console.log('🔘 Подтверждено, adminSocket:', adminSocket?.connected);
             if (adminSocket && adminSocket.connected) {
                 adminSocket.emit('clear_chat_for_all');
                 addLog('🧹 Отправлена команда очистки чата для всех игроков', 'warning');
                 showToast('✅ Команда отправлена');
             } else {
+                console.log('❌ Сокет не подключён');
                 showToast('❌ Нет соединения с сервером');
             }
         }
-    });
+    };
 }
     
     // Кнопки событий
@@ -1624,17 +1671,30 @@ if (clearChatBtn) {
 
     // ЗАПУСК
     function init() {
-        console.log('🚀 Инициализация админ-панели...');
-        bindSliders();
-        initTabs();
-        bindEvents();
-        renderChat();
-        loadBackupsFromStorage();
-        initAdminSocket();
-        checkAdminAuth();
-        addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
-        console.log('✅ Инициализация завершена');
+    console.log('🚀 Инициализация админ-панели...');
+    
+    // Проверяем токен при загрузке
+    const token = localStorage.getItem('admin_token');
+    console.log('🔍 Токен при загрузке:', token ? 'Есть' : 'Нет');
+    
+    if (!token) {
+        console.log('🔐 Токена нет, показываем окно входа');
+        showAdminLogin();
+        return;
     }
+    
+    // Токен есть — загружаем админку
+    adminToken = token;
+    bindSliders();
+    initTabs();
+    bindEvents();
+    renderChat();
+    loadBackupsFromStorage();
+    initAdminSocket();
+    loadPlayersFromServer();
+    addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
+    console.log('✅ Инициализация завершена');
+}
 
     init();
 </script>
