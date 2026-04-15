@@ -1377,11 +1377,14 @@ function clearChatForAll() {
     }
 
     function toggleCard(header) {
-        const body = header.closest('.card').querySelector('.card-body');
-        const arrow = header.querySelector('span');
-        body.classList.toggle('collapsed');
-        arrow.innerHTML = body.classList.contains('collapsed') ? '▲' : '▼';
-    }
+    const body = header.closest('.card').querySelector('.card-body');
+    const arrow = header.querySelector('span');
+    body.classList.toggle('collapsed');
+    arrow.innerHTML = body.classList.contains('collapsed') ? '▲' : '▼';
+    
+    // Сохраняем состояние
+    saveCardsState();
+}
 
     // ========== ПОИСК ==========
     function searchPlayers() {
@@ -1702,5 +1705,214 @@ if (clearChatBtn) {
 </script>
 
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script>
+// ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+let sortableInstances = [];
+
+// ========== СОХРАНЕНИЕ СОСТОЯНИЯ КАРТОЧЕК ==========
+function saveCardsState() {
+    // 1. Сохраняем свёрнутость
+    const collapsedState = [];
+    document.querySelectorAll('.card').forEach((card) => {
+        const body = card.querySelector('.card-body');
+        collapsedState.push(body?.classList.contains('collapsed') || false);
+    });
+    localStorage.setItem('admin_collapsed_state', JSON.stringify(collapsedState));
+    
+    // 2. Сохраняем порядок и расположение по колонкам
+    const layout = {
+        left: [],
+        centerLeft: [],
+        centerRight: [],
+        right: []
+    };
+    
+    // Левая колонка
+    document.querySelectorAll('.col-left > .card').forEach(card => {
+        const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
+        layout.left.push(title);
+    });
+    
+    // Центр-левая колонка (.col-center их две — берем первую)
+    const centerCols = document.querySelectorAll('.col-center');
+    if (centerCols[0]) {
+        centerCols[0].querySelectorAll('.card').forEach(card => {
+            const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
+            layout.centerLeft.push(title);
+        });
+    }
+    
+    // Центр-правая колонка (вторая .col-center)
+    if (centerCols[1]) {
+        centerCols[1].querySelectorAll('.card').forEach(card => {
+            const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
+            layout.centerRight.push(title);
+        });
+    }
+    
+    // Правая колонка
+    document.querySelectorAll('.col-right > .card').forEach(card => {
+        const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
+        layout.right.push(title);
+    });
+    
+    localStorage.setItem('admin_layout', JSON.stringify(layout));
+    console.log('💾 Раскладка сохранена', layout);
+}
+
+// ========== ЗАГРУЗКА СОСТОЯНИЯ ==========
+function loadCardsState() {
+    // 1. Загружаем свёрнутость
+    const collapsedState = localStorage.getItem('admin_collapsed_state');
+    if (collapsedState) {
+        const states = JSON.parse(collapsedState);
+        document.querySelectorAll('.card').forEach((card, index) => {
+            if (states[index]) {
+                const body = card.querySelector('.card-body');
+                const arrow = card.querySelector('.card-header span');
+                if (body && !body.classList.contains('collapsed')) {
+                    body.classList.add('collapsed');
+                    if (arrow) arrow.innerHTML = '▲';
+                }
+            }
+        });
+    }
+    
+    console.log('📦 Состояние загружено');
+}
+
+// ========== ОБНОВЛЕНИЕ ФУНКЦИИ TOGGLECARD ==========
+const originalToggleCard = window.toggleCard;
+window.toggleCard = function(header) {
+    if (originalToggleCard) originalToggleCard(header);
+    saveCardsState();
+};
+
+// ========== ИНИЦИАЛИЗАЦИЯ ПЕРЕТАСКИВАНИЯ ==========
+function initDragAndDrop() {
+    // Удаляем старые инстансы
+    sortableInstances.forEach(instance => instance.destroy());
+    sortableInstances = [];
+    
+    // Находим все колонки
+    const columns = [
+        document.querySelector('.col-left'),
+        ...document.querySelectorAll('.col-center'),
+        document.querySelector('.col-right')
+    ].filter(col => col);
+    
+    columns.forEach(column => {
+        const sortable = new Sortable(column, {
+            group: {
+                name: 'shared',
+                pull: true,
+                revertClone: false
+            },
+            animation: 200,
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            onEnd: function() {
+                setTimeout(() => saveCardsState(), 50);
+            }
+        });
+        sortableInstances.push(sortable);
+    });
+    
+    console.log('🔄 Drag & Drop инициализирован');
+}
+
+// ========== ВОССТАНОВЛЕНИЕ РАСКЛАДКИ ПРИ ЗАГРУЗКЕ ==========
+function restoreLayout() {
+    const saved = localStorage.getItem('admin_layout');
+    if (!saved) {
+        console.log('📦 Нет сохранённой раскладки');
+        return;
+    }
+    
+    const layout = JSON.parse(saved);
+    console.log('📦 Восстанавливаем раскладку...', layout);
+    
+    // Получаем все карточки
+    const allCards = {};
+    document.querySelectorAll('.card').forEach(card => {
+        const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
+        allCards[title] = card;
+    });
+    
+    // Функция перемещения карточки
+    function moveCard(card, targetColumn) {
+        if (!card || !targetColumn) return;
+        if (card.parentElement === targetColumn) return;
+        targetColumn.appendChild(card);
+    }
+    
+    // Восстанавливаем левую колонку
+    const leftCol = document.querySelector('.col-left');
+    layout.left.forEach(title => {
+        if (allCards[title]) moveCard(allCards[title], leftCol);
+    });
+    
+    // Восстанавливаем центральные колонки
+    const centerCols = document.querySelectorAll('.col-center');
+    if (centerCols[0]) {
+        layout.centerLeft.forEach(title => {
+            if (allCards[title]) moveCard(allCards[title], centerCols[0]);
+        });
+    }
+    if (centerCols[1]) {
+        layout.centerRight.forEach(title => {
+            if (allCards[title]) moveCard(allCards[title], centerCols[1]);
+        });
+    }
+    
+    // Восстанавливаем правую колонку
+    const rightCol = document.querySelector('.col-right');
+    layout.right.forEach(title => {
+        if (allCards[title]) moveCard(allCards[title], rightCol);
+    });
+    
+    // Переинициализируем Drag & Drop после перемещения
+    setTimeout(() => {
+        initDragAndDrop();
+        console.log('✅ Раскладка восстановлена');
+    }, 100);
+}
+
+// ========== ЗАПУСК ==========
+window.addEventListener('DOMContentLoaded', () => {
+    // Восстанавливаем раскладку
+    restoreLayout();
+    
+    // Загружаем свёрнутость
+    setTimeout(loadCardsState, 150);
+    
+    // Инициализируем Drag & Drop
+    initDragAndDrop();
+});
+
+// Стили
+const style = document.createElement('style');
+style.textContent = `
+    .sortable-ghost {
+        opacity: 0.3;
+        background: #2a5f7a;
+        border: 2px dashed #ffaa66;
+    }
+    .sortable-drag {
+        opacity: 0.8;
+        cursor: grabbing;
+    }
+    .card {
+        cursor: grab;
+    }
+    .card:active {
+        cursor: grabbing;
+    }
+`;
+document.head.appendChild(style);
+</script>
+
 </body>
 </html>
