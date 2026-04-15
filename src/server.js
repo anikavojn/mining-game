@@ -6,18 +6,51 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
+const fs = require('fs');
 
-// Хранилище истории чата (последние 50 сообщений)
+// ========== 1. ОБЪЯВЛЯЕМ ПЕРЕМЕННЫЕ ==========
 let chatHistory = [];
 const MAX_HISTORY = 10000;
+const HISTORY_FILE = './chat-history.json';
 
+// ========== 2. ЗАГРУЖАЕМ ИСТОРИЮ ==========
+if (fs.existsSync(HISTORY_FILE)) {
+    try {
+        const loaded = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
+        if (Array.isArray(loaded)) {
+            chatHistory = loaded;
+            console.log(`📜 Загружено ${chatHistory.length} сообщений из файла`);
+        }
+    } catch (err) {
+        console.log('⚠️ Ошибка загрузки истории:', err.message);
+    }
+}
+
+// ========== 3. ФУНКЦИЯ СОХРАНЕНИЯ ==========
+function saveHistory() {
+    try {
+        fs.writeFileSync(HISTORY_FILE, JSON.stringify(chatHistory.slice(-MAX_HISTORY), null, 2));
+        console.log(`💾 Сохранено ${chatHistory.length} сообщений`);
+    } catch (err) {
+        console.log('⚠️ Ошибка сохранения:', err.message);
+    }
+}
+
+// ========== 4. ИНИЦИАЛИЗАЦИЯ ==========
 const app = express();
 
-// Подключение к Supabase
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_KEY
 );
+
+global.economySettings = {
+    shareReward: 0.00002,
+    blockReward: 0.05,
+    chipsReward: 2,
+    sellTax: 30,
+    updatedAt: new Date()
+};
 
 app.use(cors());
 app.use(express.json());
@@ -35,33 +68,68 @@ const io = socketIo(server, {
 // ========== ОБРАБОТЧИКИ SOCKET.IO ==========
 io.on('connection', (socket) => {
     console.log('🔌 Пользователь подключился:', socket.id);
-            // Сообщения от админа с защитой от дублей
-    let lastAdminMessage = null;
     
-    socket.on('admin_message', (data) => {
-        // Проверка на дубль (в течение 2 секунд)
-        const now = Date.now();
-        if (lastAdminMessage && 
-            lastAdminMessage.text === data.text && 
-            now - lastAdminMessage.time < 2000) {
-            return; // Игнорируем дубль
+    let lastAdminMessages = new Map();
+
+    // ========== ОЧИСТКА ЧАТА ДЛЯ ВСЕХ (АДМИН) ==========
+    socket.on('clear_chat_for_all', (data) => {
+        console.log('📡 ПОЛУЧЕНО clear_chat_for_all от:', socket.id);
+        
+        const token = socket.handshake.auth.token;
+        if (!token) {
+            console.log('❌ Нет токена');
+            return;
         }
         
-        lastAdminMessage = { text: data.text, time: now };
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (decoded.role !== 'admin') {
+                console.log('❌ Не админ, роль:', decoded.role);
+                return;
+            }
+            
+            chatHistory = [];
+            saveHistory();
+            io.emit('chat_cleared_by_admin');
+            console.log('🧹 Чат очищен для всех админом');
+            
+        } catch (err) {
+            console.log('❌ Ошибка токена:', err.message);
+        }
+    });
+    
+    // ========== АДМИН-ЧАТ ==========
+    socket.on('admin_message', (data) => {
+        if (!socket.lastAdminMessageTime) socket.lastAdminMessageTime = 0;
+        const now = Date.now();
+        if (now - socket.lastAdminMessageTime < 500) return;
+        socket.lastAdminMessageTime = now;
         
-        console.log('👑 АДМИН:', data.text);
+        const historyEntry = {
+            username: data.username || '👑 АДМИН',
+            message: data.text,
+            timestamp: new Date().toISOString(),
+            isAdmin: true
+        };
+        chatHistory.push(historyEntry);
+        if (chatHistory.length > MAX_HISTORY) chatHistory.shift();
+        saveHistory();
+        
         io.emit('admin_message', {
             username: data.username || '👑 АДМИН',
             text: data.text,
             timestamp: new Date().toISOString()
         });
+        
+        console.log('📢 Админ:', data.text);
     });
     
-    // Запрос истории чата
+    // ========== ЗАПРОС ИСТОРИИ ЧАТА ==========
     socket.on('request_history', () => {
         socket.emit('chat_history', chatHistory);
     });
     
+    // ========== ОНЛАЙН-ПОЛЬЗОВАТЕЛИ ==========
     socket.on('user_online', (username) => {
         socket.username = username;
         console.log('👤 Пользователь в сети:', username);
@@ -72,15 +140,18 @@ io.on('connection', (socket) => {
         io.emit('online_users', onlineUsers);
     });
     
+    // ========== ОБЫЧНЫЕ СООБЩЕНИЯ ==========
     socket.on('chat_message', (data) => {
         if (!data.timestamp) data.timestamp = new Date().toISOString();
         chatHistory.push(data);
         if (chatHistory.length > MAX_HISTORY) chatHistory.shift();
+        saveHistory();
         
         console.log('💬', data.username + ':', data.message);
         io.emit('chat_message', data);
     });
     
+    // ========== ОТКЛЮЧЕНИЕ ==========
     socket.on('disconnect', () => {
         console.log('🔌 Пользователь отключился:', socket.id);
         const onlineUsers = [];
@@ -91,10 +162,9 @@ io.on('connection', (socket) => {
     });
 });
 
-// ========== ВСЕ ТВОИ СУЩЕСТВУЮЩИЕ МАРШРУТЫ (REST API) ==========
-// (они остаются без изменений)
+// ========== API МАРШРУТЫ ==========
 
-// ========== РЕГИСТРАЦИЯ ==========
+// Регистрация
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
@@ -136,7 +206,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 });
 
-// ========== ЛОГИН ==========
+// Логин
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -179,7 +249,152 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// ========== ПРОВЕРКА ТОКЕНА ==========
+// Админ middleware
+const isAdmin = (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Требуется авторизация' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded.role === 'admin') {
+            req.isAdmin = true;
+            return next();
+        }
+    } catch (err) {
+        console.log('❌ Ошибка верификации токена:', err.message);
+    }
+    
+    res.status(403).json({ error: 'Доступ запрещён' });
+};
+
+// Админ логин
+app.post('/api/auth/admin/login', async (req, res) => {
+    const { username, password } = req.body;
+    
+    if (username === 'admin' && password === 'admin123') {
+        const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1d' });
+        return res.json({ success: true, token });
+    }
+    
+    res.status(401).json({ error: 'Неверные данные' });
+});
+
+// Админ маршруты
+app.get('/api/admin/players', isAdmin, async (req, res) => {
+    try {
+        const { data: players, error } = await supabase
+            .from('users')
+            .select('id, username, balance, chips, base_power, defense, is_banned, created_at')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        res.json({ success: true, players });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/api/admin/players/:id', isAdmin, async (req, res) => {
+    try {
+        const { balance, chips, base_power, defense, is_banned } = req.body;
+        
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ balance, chips, base_power, defense, is_banned })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        res.json({ success: true, user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/players/:id/ban', isAdmin, async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ is_banned: true })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        res.json({ success: true, message: `Игрок ${user.username} забанен` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/players/:id/unban', isAdmin, async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .update({ is_banned: false })
+            .eq('id', req.params.id)
+            .select()
+            .single();
+        
+        if (error) throw error;
+        res.json({ success: true, message: `Игрок ${user.username} разбанен` });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/broadcast', isAdmin, async (req, res) => {
+    try {
+        const { message } = req.body;
+        if (message && io) {
+            io.emit('admin_message', {
+                text: message,
+                timestamp: new Date().toISOString()
+            });
+            res.json({ success: true, message: 'Сообщение отправлено' });
+        } else {
+            res.status(400).json({ error: 'Нет текста сообщения' });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/economy', isAdmin, async (req, res) => {
+    try {
+        const { shareReward, blockReward, chipsReward, sellTax } = req.body;
+        
+        global.economySettings = {
+            shareReward: shareReward || 0.00002,
+            blockReward: blockReward || 0.05,
+            chipsReward: chipsReward || 2,
+            sellTax: sellTax || 30,
+            updatedAt: new Date()
+        };
+        
+        io.emit('economy_update', global.economySettings);
+        
+        console.log('💰 Экономика обновлена:', global.economySettings);
+        res.json({ success: true, settings: global.economySettings });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/admin/economy', async (req, res) => {
+    res.json({ success: true, settings: global.economySettings || {
+        shareReward: 0.00002,
+        blockReward: 0.05,
+        chipsReward: 2,
+        sellTax: 30
+    }});
+});
+
+// Auth middleware для игроков
 const auth = (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) {
@@ -195,7 +410,7 @@ const auth = (req, res, next) => {
     }
 };
 
-// ========== ПОЛУЧИТЬ ПРОФИЛЬ ==========
+// Получить профиль
 app.get('/api/game/profile', auth, async (req, res) => {
     try {
         const { data: user, error } = await supabase
@@ -212,7 +427,7 @@ app.get('/api/game/profile', auth, async (req, res) => {
     }
 });
 
-// ========== СОХРАНИТЬ ПРОГРЕСС ==========
+// Сохранить прогресс
 app.post('/api/game/save', auth, async (req, res) => {
     try {
         const data = req.body;
@@ -248,7 +463,7 @@ app.post('/api/game/save', auth, async (req, res) => {
     }
 });
 
-// ========== ПОПОЛНЕНИЕ ==========
+// Пополнение
 app.post('/api/game/deposit', auth, async (req, res) => {
     try {
         const { amount } = req.body;
@@ -277,7 +492,7 @@ app.post('/api/game/deposit', auth, async (req, res) => {
     }
 });
 
-// ========== ВЫВОД ==========
+// Вывод
 app.post('/api/game/withdraw', auth, async (req, res) => {
     try {
         const { amount } = req.body;
@@ -310,194 +525,7 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
     }
 });
 
-// ========== АДМИН МАРШРУТЫ ==========
-
-// Получить всех игроков
-app.get('/api/admin/players', async (req, res) => {
-    try {
-        const { data: players, error } = await supabase
-            .from('users')
-            .select('*')
-            .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        res.json({ success: true, players });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Редактировать игрока
-app.put('/api/admin/players/:id', async (req, res) => {
-    try {
-        const { balance, chips, base_power, defense, is_banned } = req.body;
-        
-        const { data: user, error } = await supabase
-            .from('users')
-            .update({ balance, chips, base_power, defense, is_banned })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-        
-        if (error) throw error;
-        res.json({ success: true, user });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Бан игрока
-app.post('/api/admin/players/:id/ban', async (req, res) => {
-    try {
-        const { data: user, error } = await supabase
-            .from('users')
-            .update({ is_banned: true })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-        
-        if (error) throw error;
-        res.json({ success: true, message: `Игрок ${user.username} забанен` });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Разбан игрока
-app.post('/api/admin/players/:id/unban', async (req, res) => {
-    try {
-        const { data: user, error } = await supabase
-            .from('users')
-            .update({ is_banned: false })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-        
-        if (error) throw error;
-        res.json({ success: true, message: `Игрок ${user.username} разбанен` });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// ========== АДМИН МАРШРУТЫ ==========
-
-// Проверка админ-прав (простая версия)
-const isAdmin = (req, res, next) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) return res.status(401).json({ error: 'Требуется авторизация' });
-    
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (decoded.role === 'admin') {
-            req.isAdmin = true;
-            return next();
-        }
-    } catch (err) {}
-    
-    res.status(403).json({ error: 'Доступ запрещён' });
-};
-
-// Админ-логин
-app.post('/api/auth/admin/login', async (req, res) => {
-    const { username, password } = req.body;
-    
-    // ВРЕМЕННО: простой логин (потом можно перенести в Supabase)
-    if (username === 'admin' && password === 'admin123') {
-        const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        return res.json({ success: true, token });
-    }
-    
-    res.status(401).json({ error: 'Неверные данные' });
-});
-
-// Получить всех игроков (с защитой)
-app.get('/api/admin/players', isAdmin, async (req, res) => {
-    try {
-        const { data: players, error } = await supabase
-            .from('users')
-            .select('id, username, balance, chips, base_power, defense, is_banned, created_at')
-            .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        res.json({ success: true, players });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Редактировать игрока
-app.put('/api/admin/players/:id', isAdmin, async (req, res) => {
-    try {
-        const { balance, chips, base_power, defense, is_banned } = req.body;
-        
-        const { data: user, error } = await supabase
-            .from('users')
-            .update({ balance, chips, base_power, defense, is_banned })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-        
-        if (error) throw error;
-        res.json({ success: true, user });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Бан игрока
-app.post('/api/admin/players/:id/ban', isAdmin, async (req, res) => {
-    try {
-        const { data: user, error } = await supabase
-            .from('users')
-            .update({ is_banned: true })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-        
-        if (error) throw error;
-        res.json({ success: true, message: `Игрок ${user.username} забанен` });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Разбан игрока
-app.post('/api/admin/players/:id/unban', isAdmin, async (req, res) => {
-    try {
-        const { data: user, error } = await supabase
-            .from('users')
-            .update({ is_banned: false })
-            .eq('id', req.params.id)
-            .select()
-            .single();
-        
-        if (error) throw error;
-        res.json({ success: true, message: `Игрок ${user.username} разбанен` });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// Отправить сообщение всем (через Socket.IO)
-app.post('/api/admin/broadcast', isAdmin, async (req, res) => {
-    try {
-        const { message } = req.body;
-        if (message && io) {
-            io.emit('admin_message', {
-                text: message,
-                timestamp: new Date().toISOString()
-            });
-            res.json({ success: true, message: 'Сообщение отправлено' });
-        } else {
-            res.status(400).json({ error: 'Нет текста сообщения' });
-        }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// ========== ЗАПУСК (используем server.listen вместо app.listen) ==========
+// ========== ЗАПУСК ==========
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`\n✅ Сервер запущен на http://localhost:${PORT}`);

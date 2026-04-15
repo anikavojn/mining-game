@@ -1962,7 +1962,8 @@ function triggerEvent() {
             playSuccess();
             toast(ev.succ);
             if (ev.special) {
-                player.balance += 0.05;
+                let blockReward = window.economySettings?.blockReward || 0.05;
+player.balance += blockReward;
                 player.basePower = Math.floor(player.basePower * 1.1);
                 recalc();
             }
@@ -2423,36 +2424,50 @@ coolEff = Math.min(1.0, coolEff + coolingGearBonus);
     
     let shares = 0;
     if (player.mining && player.energy > 0) {
-        let chance = Math.min(0.35, (player.hashPower / 300) * player.buffs.luck);
-        for (let i = 0; i < 2; i++) {
-            if (Math.random() < chance) {
-                shares++;
-                player.shares++;
-                player.totalShares++;
-                let earned = (player.hashPower * 0.00002) / 1440;
-                player.balance += earned;
-                player.totalEarned += earned;
-                player.miningEarned += earned;
-                let chipsDrop = Math.floor(Math.random() * 3) + 1;
-                player.chips += chipsDrop;
-                
-                tasks.forEach(t => { if (t.type === "chips") t.progress += chipsDrop; if (t.type === "shares") t.progress++; });
-                
-                if (Math.random() < 0.002 * player.buffs.luck && player.shares > 5) {
-                    player.blocks++;
-                    player.totalBlocks++;
-                    player.balance += 0.05;
-                    player.totalEarned += 0.05;
-                    addLog(`🏆 БЛОК #${player.blocks}! +0.05 SOL`, 'block');
-                    playSuccess();
-                    toast(`🏆 БЛОК #${player.blocks}! +0.05 SOL`);
-                }
-                
-                if (chipsDrop > 0) addLog(`🔧 +${chipsDrop} чипов!`, 'success');
+    let chance = Math.min(0.35, (player.hashPower / 300) * player.buffs.luck);
+    for (let i = 0; i < 2; i++) {
+        if (Math.random() < chance) {
+            shares++;
+            player.shares++;
+            player.totalShares++;
+            
+            // ========== ИСПРАВЛЕННОЕ НАЧИСЛЕНИЕ НАГРАД ==========
+            // Получаем настройки от админа (или значения по умолчанию)
+            let shareReward = window.economySettings?.shareReward ?? 0.00002;
+            let chipsPerShare = window.economySettings?.chipsReward ?? 2;
+            
+            // Начисляем ТОЧНО по настройкам админа
+            let earned = shareReward;
+            player.balance += earned;
+            player.totalEarned += earned;
+            player.miningEarned += earned;
+            player.chips += chipsPerShare;
+            // ==================================================
+            
+            // Обновляем прогресс заданий
+            tasks.forEach(t => { 
+                if (t.type === "chips") t.progress += chipsPerShare; 
+                if (t.type === "shares") t.progress++; 
+            });
+            
+            // Проверка на блок (оставляем как было, но тоже используем настройки админа)
+            if (Math.random() < 0.002 * player.buffs.luck && player.shares > 5) {
+                player.blocks++;
+                player.totalBlocks++;
+                let blockReward = window.economySettings?.blockReward ?? 0.05;
+                player.balance += blockReward;
+                player.totalEarned += blockReward;
+                addLog(`🏆 БЛОК #${player.blocks}! +${blockReward.toFixed(8)} SOL`, 'block');
+                playSuccess();
+                toast(`🏆 БЛОК #${player.blocks}! +${blockReward.toFixed(8)} SOL`);
             }
+            
+            // Логируем награду за шару
+            addLog(`🎯 Шара! +${earned.toFixed(8)} SOL, +${chipsPerShare} чипов`, 'success');
         }
-        if (shares) addLog(`🎯 +${shares} шар!`, 'success');
     }
+    if (shares) addLog(`🎯 Всего найдено шар: ${shares}`, 'info');
+}
     player.spm = Math.floor(player.spm * 0.7 + shares * 3);
     
     if (player.voltage >= 11.8 && player.voltage <= 12.2) {
@@ -3479,11 +3494,117 @@ if (savedUserForChat) {
 // Подключаем Socket.IO
 if (!window.socket) {
     window.socket = io();
+
+    // ========== ОБРАБОТЧИКИ СОКЕТА ==========
+    
+    // Получение обновлений экономики от админа
+    window.socket.on('economy_update', (settings) => {
+        console.log('💰 Экономика обновлена администратором:', settings);
+        window.economySettings = settings;
+        
+    });
+
     window.socket.on('connect', () => {
         console.log('✅ Чат подключён к серверу');
         if (currentUsername) {
             window.socket.emit('user_online', currentUsername);
+
+        // ========== ОЧИСТКА ЧАТА АДМИНИСТРАТОРОМ ==========
+    window.socket.on('chat_cleared_by_admin', () => {
+        console.log('🧹 Чат очищен администратором');
+        
+        // Очищаем локальный массив сообщений во всех окнах чата
+        document.querySelectorAll('.floating-window').forEach(win => {
+            const title = win.querySelector('.window-title')?.innerText || '';
+            if (title.includes('ЧАТ')) {
+                const messagesDiv = win.querySelector('.chat-messages-win');
+                if (messagesDiv) {
+                    messagesDiv.innerHTML = '';
+                }
+                // Если есть локальный массив у окна
+                if (win._chatMessages) {
+                    win._chatMessages = [];
+                }
+            }
+        });
+        
+        // Также очищаем глобальный массив если он есть
+        if (typeof chatMsgs !== 'undefined') {
+            chatMsgs = [];
         }
+        
+        // Не показываем тост — только тихая очистка
+    });        
+
+            
+        }
+    });
+}
+
+// ============================================
+// ПРИЁМ ОБНОВЛЕНИЙ ЭКОНОМИКИ ОТ АДМИНА
+// ============================================
+
+if (window.socket) {
+    // Обработчик обновления экономических настроек
+    window.socket.on('economy_update', (settings) => {
+        console.log('💰 Экономика обновлена:', settings);
+
+        // Получение обновлений экономики от админа
+window.socket.on('economy_update', (settings) => {
+    console.log('💰 Экономика обновлена администратором:', settings);
+    
+    // Сохраняем настройки в глобальные переменные
+    window.economySettings = settings;
+    
+    // Показываем уведомление игроку
+    
+});
+        
+        // Сохраняем настройки в глобальную переменную
+        window.economySettings = settings;
+        
+        // Обновляем переменные в игре
+        if (settings.shareReward !== undefined) {
+            window.shareReward = settings.shareReward;
+            addLog(`📊 Награда за шару изменена: ${settings.shareReward} SOL`, 'info');
+        }
+        
+        if (settings.blockReward !== undefined) {
+            window.blockReward = settings.blockReward;
+            addLog(`🏆 Награда за блок изменена: ${settings.blockReward} SOL`, 'info');
+        }
+        
+        if (settings.poolBonus !== undefined && player) {
+            player.poolBonus = settings.poolBonus;
+            addLog(`🤝 Бонус пула изменён: +${settings.poolBonus}%`, 'info');
+            if (typeof recalc === 'function') recalc();
+        }
+        
+        if (settings.energyCost !== undefined) {
+            window.energyCostMultiplier = settings.energyCost;
+            addLog(`⚡ Стоимость энергии изменена: x${settings.energyCost}`, 'info');
+        }
+        
+        // Показываем уведомление игроку
+        
+        playClick();
+        
+        // Обновляем UI если нужно
+        if (typeof updateUI === 'function') updateUI();
+    });
+    
+    // Также можно добавить обработчик для отдельных параметров
+    window.socket.on('share_reward_update', (reward) => {
+        console.log('💰 Награда за шару обновлена:', reward);
+        window.shareReward = reward;
+        addLog(`📊 Награда за шару: ${reward} SOL`, 'info');
+    });
+    
+    window.socket.on('block_reward_update', (reward) => {
+        console.log('🏆 Награда за блок обновлена:', reward);
+        window.blockReward = reward;
+        addLog(`🏆 Награда за блок: ${reward} SOL`, 'info');
     });
 }
 
@@ -3503,19 +3624,26 @@ function renderChat(cont, wid) {
     const input = cont.querySelector(`#chatIn_${wid}`);
     const sendBtn = cont.querySelector(`#chatSend_${wid}`);
     
-    // Функция обновления сообщений
+    // Локальный массив сообщений для этого окна
+    let localChatMsgs = [];
+    
     function updateMessages() {
         if (!messagesDiv) return;
-        messagesDiv.innerHTML = chatMsgs.map(msg => 
-            `<div style="padding: 4px 0; border-bottom: 1px solid #2a4a6a;">
-                <span style="color: #ffaa66; font-weight: bold;">${escapeHtml(msg.name)}:</span> 
+        messagesDiv.innerHTML = localChatMsgs.map(msg => {
+            const isAdmin = msg.isAdmin || (msg.name === '👑 АДМИН');
+            const nameColor = isAdmin ? '#ffaa66' : '#88ccff';
+            const nameWeight = isAdmin ? 'bold' : 'normal';
+            return `<div style="padding: 4px 0; border-bottom: 1px solid #2a4a6a;">
+                <span style="color: ${nameColor}; font-weight: ${nameWeight};">${escapeHtml(msg.name)}:</span> 
                 <span style="color: #c6e2ff;">${escapeHtml(msg.text)}</span>
-            </div>`
-        ).join('');
+                <span style="color: #6688aa; font-size: 10px; margin-left: 8px;">${msg.time || ''}</span>
+            </div>`;
+        }).join('');
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
     
     function escapeHtml(str) {
+        if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
@@ -3524,7 +3652,6 @@ function renderChat(cont, wid) {
         });
     }
     
-    // Отправка сообщения
     function sendMessage() {
         const message = input.value.trim();
         if (message && window.socket && currentUsername) {
@@ -3540,68 +3667,57 @@ function renderChat(cont, wid) {
     sendBtn.onclick = sendMessage;
     input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
     
-    // Очищаем массив сообщений
-    chatMsgs = [];
-
-    // Получение сообщений от админа
-if (window.socket) {
-    // Получение сообщений от админа (без дублей и без тостов)
-window.socket.on('admin_message', (data) => {
-    // Проверяем, нет ли уже такого сообщения в чате
-    const lastMsg = chatMsgs[chatMsgs.length - 1];
-    const isDuplicate = lastMsg && 
-                        lastMsg.name === (data.username || "👑 АДМИН") && 
-                        lastMsg.text === data.text;
-    
-    if (!isDuplicate) {
-        chatMsgs.push({ 
-            name: data.username || "👑 АДМИН", 
-            text: data.text, 
-            type: "admin" 
-        });
-        if (chatMsgs.length > 200) chatMsgs.shift();
-        updateMessages();
-    }
-});
-}
-    
-    // Настройка сокет-обработчиков (удаляем старые)
+    // НАСТРОЙКА СОКЕТ-ОБРАБОТЧИКОВ
     if (window.socket) {
-        // Удаляем все старые обработчики
+        // Удаляем старые обработчики
         window.socket.off('chat_history');
         window.socket.off('chat_message');
+        window.socket.off('admin_message');
         
-        // Обработчик истории (при открытии окна)
+        // Обработчик истории
         window.socket.on('chat_history', (history) => {
-            console.log('📜 История чата:', history.length, 'сообщений');
-            chatMsgs = [];
-            history.forEach(msg => {
-                chatMsgs.push({ name: msg.username, text: msg.message });
-            });
+            console.log('📜 История чата:', history?.length || 0, 'сообщений');
+            localChatMsgs = [];
+            if (history && Array.isArray(history)) {
+                history.forEach(msg => {
+                    localChatMsgs.push({ 
+                        name: msg.username || msg.name,
+                        text: msg.message || msg.text,
+                        time: msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '',
+                        isAdmin: msg.isAdmin || (msg.username === '👑 АДМИН')
+                    });
+                });
+            }
             updateMessages();
         });
         
-        // Обработчик новых сообщений
+        // ⚠️ ВАЖНО: Обработчик обычных сообщений (ЕГО НЕ ХВАТАЛО!)
         window.socket.on('chat_message', (data) => {
-            chatMsgs.push({ name: data.username, text: data.message });
-            if (chatMsgs.length > 200) chatMsgs.shift();
+            console.log('💬 Новое сообщение:', data.username, data.message);
+            localChatMsgs.push({
+                name: data.username,
+                text: data.message,
+                time: data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
+                isAdmin: false
+            });
+            if (localChatMsgs.length > 200) localChatMsgs.shift();
             updateMessages();
         });
-        // Получение сообщений от админа
-window.socket.on('admin_message', (data) => {
-    chatMsgs.push({ 
-        name: data.username || "👑 АДМИН", 
-        text: data.text, 
-        type: "admin" 
-    });
-    if (chatMsgs.length > 200) chatMsgs.shift();
-    updateMessages();
-    toast(`📢 ${data.username || 'Админ'}: ${data.text}`);
-});
-    }
-    
-    // Запрашиваем историю при открытии окна
-    if (window.socket && window.socket.connected) {
+        
+        // Обработчик админских сообщений
+        window.socket.on('admin_message', (data) => {
+            console.log('📢 Админ:', data.text);
+            localChatMsgs.push({
+                name: data.username || '👑 АДМИН',
+                text: data.text,
+                time: data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
+                isAdmin: true
+            });
+            if (localChatMsgs.length > 200) localChatMsgs.shift();
+            updateMessages();
+        });
+        
+        // Запрашиваем историю
         window.socket.emit('request_history');
     }
     
