@@ -711,7 +711,7 @@
                 <div class="chat-input-area">
     <input type="text" id="chatInput" placeholder="Введите сообщение для всех игроков..." maxlength="200">
     <button class="btn btn-sm btn-primary" id="sendChatBtn">📨 ОТПРАВИТЬ</button>
-    <button class="btn btn-sm btn-danger" id="clearChatBtn">🗑️ ОЧИСТИТЬ ЧАТ</button>
+    <button class="btn btn-sm btn-danger" id="clearChatBtn" onclick="clearChatForAll()">🗑️ ОЧИСТИТЬ ЧАТ</button>
 </div>
                 <div style="font-size: 9px; color: #6f9fbf; margin-top: 8px; text-align: center;">
                     💡 Сообщения видны всем активным игрокам
@@ -813,9 +813,6 @@ function logout() {
     let adminToken = localStorage.getItem('admin_token');
     
     const API_URL = '';  // Пустая строка = относительные пути
-
-    // Подключаем сокет для админки
-    let adminSocket = null;
 
     // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
     function showToast(msg) {
@@ -1030,87 +1027,71 @@ function logout() {
         // ========== СОКЕТ ДЛЯ АДМИНКИ ==========
     
 function initAdminSocket() {
-    // Автоматически определяем URL сокета
     let socketUrl;
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         socketUrl = 'http://localhost:3000';
     } else {
-        socketUrl = window.location.origin;  // Берёт текущий URL на Render
+        socketUrl = window.location.origin;
     }
     
     console.log('🔌 Подключение к сокету:', socketUrl);
-    adminSocket = io(socketUrl, {
-        auth: {
-            token: localStorage.getItem('admin_token')
-        }
+    
+    // ГЛАВНОЕ: создаём ГЛОБАЛЬНУЮ переменную
+    window.adminSocket = io(socketUrl, {
+        auth: { token: localStorage.getItem('admin_token') }
     });
     
-    adminSocket.on('connect', () => {
+    window.adminSocket.on('connect', () => {
         console.log('✅ Сокет подключён');
-        addLog(`✅ Сокет подключён, запрашиваю историю чата...`, 'success');
-        adminSocket.emit('request_history');
+        addLog(`✅ Сокет подключён`, 'success');
+        window.adminSocket.emit('request_history');
     });
     
-    adminSocket.on('connect_error', (err) => {
+    window.adminSocket.on('connect_error', (err) => {
         console.error('❌ Ошибка сокета:', err.message);
         addLog(`❌ Ошибка сокета: ${err.message}`, 'error');
     });
     
-    // ========== ПОЛУЧЕНИЕ ИСТОРИИ ЧАТА ==========
-    adminSocket.on('chat_history', (history) => {
+    window.adminSocket.on('chat_history', (history) => {
         console.log('📜 Админ получил историю чата:', history?.length || 0, 'сообщений');
-        
         if (history && Array.isArray(history)) {
             chatMessages = [];
-            
             history.forEach(msg => {
                 const isAdmin = msg.isAdmin || (msg.username === '👑 АДМИН');
                 const name = msg.username || msg.name;
                 const text = msg.message || msg.text;
-                
-                chatMessages.push({
-                    name: name,
-                    text: text,
-                    type: isAdmin ? 'admin' : 'player'
-                });
+                chatMessages.push({ name, text, type: isAdmin ? 'admin' : 'player' });
             });
-            
             if (chatMessages.length === 0) {
                 chatMessages.push({ name: "🔧 СИСТЕМА", text: "История чата пуста", type: "system" });
             }
-            
             renderChat();
             addLog(`📜 Загружено ${history.length} сообщений из истории`, 'success');
-
-                // ОЧИСТКА ЧАТА (получаем подтверждение от сервера)
-    adminSocket.on('chat_cleared_by_admin', () => {
+        }
+    });
+    
+    window.adminSocket.on('chat_cleared_by_admin', () => {
         console.log('🧹 Админка: чат очищен');
         chatMessages = [];
         chatMessages.push({ name: "🔧 СИСТЕМА", text: "Чат очищен администратором", type: "system" });
         renderChat();
     });
-        }
-    });
     
-    // ========== ОБЫЧНЫЕ СООБЩЕНИЯ ОТ ИГРОКОВ ==========
-    adminSocket.on('chat_message', (data) => {
+    window.adminSocket.on('chat_message', (data) => {
         console.log('💬 Получено сообщение от игрока:', data);
         addChatMessage(data.username, data.message, "player");
         addLog(`💬 ИГРОК ${data.username}: "${data.message}"`, 'info');
     });
     
-    // ========== АДМИНСКИЕ СООБЩЕНИЯ ==========
-    adminSocket.on('admin_message', (data) => {
+    window.adminSocket.on('admin_message', (data) => {
         console.log('📢 Получено админ-сообщение:', data);
         const name = data.username || '👑 АДМИН';
         const text = data.text;
-        
         const lastMsg = chatMessages[chatMessages.length - 1];
         if (lastMsg && lastMsg.name === name && lastMsg.text === text) {
             console.log('🔄 Дубль игнорирован');
             return;
         }
-        
         addChatMessage(name, text, "admin");
         addLog(`📢 ${name}: "${text}"`, 'success');
     });
@@ -1186,9 +1167,9 @@ window.clearChat = function() {
     lastSentMsg = text;
     lastSentTime = now;
     
-    if (adminSocket && adminSocket.connected) {
+    if (window.adminSocket && window.adminSocket.connected) {
         // Отправляем на сервер
-        adminSocket.emit('admin_message', {
+        window.adminSocket.emit('admin_message', {
             text: text,
             username: '👑 АДМИН'
         });
@@ -1238,7 +1219,7 @@ window.clearChat = function() {
                 adminToken = localStorage.getItem('admin_token');
                 await loadPlayersFromServer();
                 addLog(`🔐 Администратор вошёл`, 'success');
-                if (adminSocket) adminSocket.disconnect();
+                if (window.adminSocket) window.adminSocket.disconnect();
                 initAdminSocket();
             } else {
                 alert('Ошибка входа: ' + data.error);
@@ -1269,12 +1250,13 @@ window.clearChat = function() {
 
 function clearChatForAll() {
     console.log('🧹 Отправлена команда очистки чата для всех игроков');
-    if (adminSocket && adminSocket.connected) {
-        adminSocket.emit('clear_chat_for_all', {}, {
-            auth: { token: localStorage.getItem('admin_token') }
-        });
+    if (window.adminSocket && window.adminSocket.connected) {
+        window.adminSocket.emit('clear_chat_for_all');
+        addLog('🧹 Отправлена команда очистки чата для всех игроков', 'warning');
+        showToast('✅ Команда отправлена');
     } else {
         addLog('❌ Сокет не подключён', 'error');
+        showToast('❌ Нет соединения с сервером');
     }
 }
 
@@ -1458,13 +1440,12 @@ if (clearChatBtn) {
     clearChatBtn.onclick = function() {
         console.log('🔘 Кнопка очистки чата нажата');
         if (confirm('Очистить чат у ВСЕХ игроков?')) {
-            console.log('🔘 Подтверждено, adminSocket:', adminSocket?.connected);
-            if (adminSocket && adminSocket.connected) {
-                adminSocket.emit('clear_chat_for_all');
+            if (window.adminSocket && window.adminSocket.connected) {
+                window.adminSocket.emit('clear_chat_for_all');
                 addLog('🧹 Отправлена команда очистки чата для всех игроков', 'warning');
                 showToast('✅ Команда отправлена');
             } else {
-                console.log('❌ Сокет не подключён');
+                addLog('❌ Сокет не подключён', 'error');
                 showToast('❌ Нет соединения с сервером');
             }
         }
@@ -1676,26 +1657,25 @@ if (clearChatBtn) {
 
     // ЗАПУСК
     function init() {
+    window.adminSocket = null;    
     console.log('🚀 Инициализация админ-панели...');
     
-    // Проверяем токен при загрузке
     const token = localStorage.getItem('admin_token');
-    console.log('🔍 Токен при загрузке:', token ? 'Есть' : 'Нет');
-    
     if (!token) {
-        console.log('🔐 Токена нет, показываем окно входа');
         showAdminLogin();
         return;
     }
     
-    // Токен есть — загружаем админку
     adminToken = token;
     bindSliders();
     initTabs();
     bindEvents();
     renderChat();
     loadBackupsFromStorage();
-    initAdminSocket();
+    // loadLayout();  // ← ЗАКОММЕНТИРОВАНО
+    loadCardsState();
+    initDragAndDrop();
+    initAdminSocket(); 
     loadPlayersFromServer();
     addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
     console.log('✅ Инициализация завершена');
@@ -1781,6 +1761,13 @@ function loadCardsState() {
     }
     
     console.log('📦 Состояние загружено');
+}
+
+function loadLayout() {
+    const saved = localStorage.getItem('admin_layout');
+    if (!saved) return;
+    console.log('📦 Загружаем раскладку');
+    // Функция пока просто заглушка, чтобы не ломать код
 }
 
 // ========== ОБНОВЛЕНИЕ ФУНКЦИИ TOGGLECARD ==========
