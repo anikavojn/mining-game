@@ -1667,6 +1667,8 @@ if (clearChatBtn) {
     }
     
     adminToken = token;
+    if (window.adminSocket) window.adminSocket.disconnect();
+    initAdminSocket();
     bindSliders();
     initTabs();
     bindEvents();
@@ -1675,7 +1677,6 @@ if (clearChatBtn) {
     // loadLayout();  // ← ЗАКОММЕНТИРОВАНО
     loadCardsState();
     initDragAndDrop();
-    initAdminSocket(); 
     loadPlayersFromServer();
     addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
     console.log('✅ Инициализация завершена');
