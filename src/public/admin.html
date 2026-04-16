@@ -1903,6 +1903,13 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 </script>
-
+<script>
+    window.addEventListener('load', function() {
+        if (!window.adminSocket || !window.adminSocket.connected) {
+            console.log('🔄 Сокет не найден, создаю заново...');
+            initAdminSocket();
+        }
+    });
+</script>
 </body>
 </html>
