@@ -1918,5 +1918,19 @@ document.head.appendChild(style);
         }, 500);
     });
 </script>
+<script>
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            if (window.adminSocket) window.adminSocket.disconnect();
+            initAdminSocket();
+            
+            // После подключения сокета — запросить онлайн игроков
+            window.adminSocket.on('connect', function() {
+                console.log('✅ Сокет пересоздан, запрашиваю онлайн игроков');
+                window.adminSocket.emit('request_online_players');
+            });
+        }, 500);
+    });
+</script>
 </body>
 </html>
