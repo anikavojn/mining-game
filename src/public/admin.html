@@ -876,6 +876,27 @@ function logout() {
         }
     }
 
+    async function loadEconomySettings() {
+    try {
+        const res = await fetch(`${API_URL}/api/admin/economy`, {
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            const s = data.settings;
+            document.getElementById('shareReward').value = Number(s.shareReward).toFixed(8);
+            document.getElementById('blockReward').value = Number(s.blockReward).toFixed(8);  // ← было 5, стало 8
+            document.getElementById('chipsReward').value = s.chipsReward;
+            document.getElementById('sellTax').value = s.sellTax;
+            const sellTaxVal = document.getElementById('sellTaxVal');
+            if (sellTaxVal) sellTaxVal.innerText = s.sellTax + '%';
+            addLog(`💰 Загружены настройки экономики`, 'success');
+        }
+    } catch (err) {
+        addLog(`❌ Ошибка загрузки экономики: ${err.message}`, 'error');
+    }
+}
+
     async function updatePlayerOnServer(playerId, updateData) {
         if (!adminToken) return false;
         try {
@@ -1460,35 +1481,35 @@ if (clearChatBtn) {
     if (stopEventBtn) stopEventBtn.addEventListener('click', stopGlobalEvent);
     
     // Кнопка экономики
-    const applyEconomyBtn = document.getElementById('applyEconomyBtn');
-    if (applyEconomyBtn) {
-        applyEconomyBtn.addEventListener('click', async () => {
-            const shareReward = parseFloat(document.getElementById('shareReward')?.value || 0);
-            const blockReward = parseFloat(document.getElementById('blockReward')?.value || 0);
-            const chipsReward = parseInt(document.getElementById('chipsReward')?.value || 0);
-            const sellTax = parseInt(document.getElementById('sellTax')?.value || 0);
+    //const applyEconomyBtn = document.getElementById('applyEconomyBtn');
+    //if (applyEconomyBtn) {
+    //    applyEconomyBtn.addEventListener('click', async () => {
+    //        const shareReward = parseFloat(document.getElementById('shareReward')?.value || 0);
+    //        const blockReward = parseFloat(document.getElementById('blockReward')?.value || 0);
+    //        const chipsReward = parseInt(document.getElementById('chipsReward')?.value || 0);
+    //        const sellTax = parseInt(document.getElementById('sellTax')?.value || 0);
             
-            try {
-                const res = await fetch(`${API_URL}/api/admin/economy`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${adminToken}`
-                    },
-                    body: JSON.stringify({ shareReward, blockReward, chipsReward, sellTax })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    addLog(`💰 Экономика обновлена`, 'success');
-                    showToast(`💾 Экономика обновлена`);
-                } else {
-                    addLog(`❌ Ошибка: ${data.error}`, 'error');
-                }
-            } catch (err) {
-                addLog(`❌ Ошибка: ${err.message}`, 'error');
-            }
-        });
-    }
+    //        try {
+    //            const res = await fetch(`${API_URL}/api/admin/economy`, {
+    //                method: 'POST',
+    //                headers: {
+     //                   'Content-Type': 'application/json',
+    //                    'Authorization': `Bearer ${adminToken}`
+    //                },
+    //                body: JSON.stringify({ shareReward, blockReward, chipsReward, sellTax })
+    //            });
+    //            const data = await res.json();
+    //            if (data.success) {
+    //                addLog(`💰 Экономика обновлена`, 'success');
+    //                showToast(`💾 Экономика обновлена`);
+    //            } else {
+    //                addLog(`❌ Ошибка: ${data.error}`, 'error');
+    //            }
+    //       } catch (err) {
+    //            addLog(`❌ Ошибка: ${err.message}`, 'error');
+    //        }
+    //    });
+    //}
     
     // Балансировка
     const applyBalanceBtn = document.getElementById('applyBalanceBtn');
@@ -1675,14 +1696,14 @@ if (clearChatBtn) {
     loadCardsState();
     initDragAndDrop();
     loadPlayersFromServer();
+    loadEconomySettings();   // ← ОДИН РАЗ, ПОСЛЕ ВСЕХ ЗАГРУЗОК
     
-    // СОЗДАЁМ СОКЕТ ПОСЛЕ ВСЕХ ЗАГРУЗОК
-    if (window.adminSocket) window.adminSocket.disconnect();
-    //  initAdminSocket();
     addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
     console.log('✅ Инициализация завершена');
 }
-
+setTimeout(function() {
+    loadEconomySettings();
+}, 1000);
     init();
 </script>
 
