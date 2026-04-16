@@ -1678,8 +1678,7 @@ if (clearChatBtn) {
     
     // СОЗДАЁМ СОКЕТ ПОСЛЕ ВСЕХ ЗАГРУЗОК
     if (window.adminSocket) window.adminSocket.disconnect();
-    initAdminSocket();
-    
+    //  initAdminSocket();
     addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
     console.log('✅ Инициализация завершена');
 }
@@ -1909,6 +1908,14 @@ document.head.appendChild(style);
             console.log('🔄 Сокет не найден, создаю заново...');
             initAdminSocket();
         }
+    });
+</script>
+<script>
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            if (window.adminSocket) window.adminSocket.disconnect();
+            initAdminSocket();
+        }, 500);
     });
 </script>
 </body>
