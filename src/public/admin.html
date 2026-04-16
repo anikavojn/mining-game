@@ -1657,7 +1657,6 @@ if (clearChatBtn) {
 
     // ЗАПУСК
     function init() {
-    window.adminSocket = null;    
     console.log('🚀 Инициализация админ-панели...');
     
     const token = localStorage.getItem('admin_token');
@@ -1667,17 +1666,20 @@ if (clearChatBtn) {
     }
     
     adminToken = token;
-    if (window.adminSocket) window.adminSocket.disconnect();
-    initAdminSocket();
+    
     bindSliders();
     initTabs();
     bindEvents();
     renderChat();
     loadBackupsFromStorage();
-    // loadLayout();  // ← ЗАКОММЕНТИРОВАНО
     loadCardsState();
     initDragAndDrop();
     loadPlayersFromServer();
+    
+    // СОЗДАЁМ СОКЕТ ПОСЛЕ ВСЕХ ЗАГРУЗОК
+    if (window.adminSocket) window.adminSocket.disconnect();
+    initAdminSocket();
+    
     addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
     console.log('✅ Инициализация завершена');
 }
