@@ -1904,30 +1904,13 @@ document.head.appendChild(style);
 </script>
 <script>
     window.addEventListener('load', function() {
-        if (!window.adminSocket || !window.adminSocket.connected) {
-            console.log('🔄 Сокет не найден, создаю заново...');
-            initAdminSocket();
-        }
-    });
-</script>
-<script>
-    window.addEventListener('load', function() {
-        setTimeout(function() {
-            if (window.adminSocket) window.adminSocket.disconnect();
-            initAdminSocket();
-        }, 500);
-    });
-</script>
-<script>
-    window.addEventListener('load', function() {
         setTimeout(function() {
             if (window.adminSocket) window.adminSocket.disconnect();
             initAdminSocket();
             
-            // После подключения сокета — запросить онлайн игроков
             window.adminSocket.on('connect', function() {
-                console.log('✅ Сокет пересоздан, запрашиваю онлайн игроков');
-                window.adminSocket.emit('request_online_players');
+                console.log('✅ Сокет пересоздан, загружаю игроков');
+                loadPlayersFromServer();
             });
         }, 500);
     });
