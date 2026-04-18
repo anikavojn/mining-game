@@ -155,7 +155,8 @@ if (!token) {
         .resolve-btn { background: linear-gradient(135deg, #3a7a5a, #2a5a3a); border: 2px solid #88ff88; color: #ccffcc; padding: 8px 20px; border-radius: 30px; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 12px; }
         .resolve-btn.disabled { background: #4a4a4a; border-color: #888; color: #aaa; cursor: not-allowed; }
         .floating-window { position: fixed; background: #0a0f16; border: 3px solid #ffaa33; border-radius: 15px; z-index: 1000; display: flex; flex-direction: column; box-shadow: 0 5px 25px rgba(0,0,0,0.5); resize: both; overflow: hidden; min-width: 250px; min-height: 200px; }
-        .window-header { background: #1c3f55; padding: 8px 12px; cursor: move; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ffaa33; user-select: none; }
+        .window-header { background: #1c3f55; padding: 8px 12px; cursor: grab; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ffaa33; user-select: none; }
+        .window-header:active { cursor: grabbing; }
         .window-title { color: #ffdd99; font-weight: bold; font-size: 14px; }
         .window-buttons { display: flex; gap: 8px; }
         .window-btn { background: #2a4a6a; border: none; color: white; width: 26px; height: 26px; border-radius: 5px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; transition: 0.1s; }
@@ -922,8 +923,10 @@ function checkStickTask() {
         let stickPadEl = document.getElementById('stickPad');
         
         if (isEven) {
-            let reward = 0.00000001
-            let chipsReward = 1
+            // Применяем бонус из админ-панели (stickWinBonus)
+            const stickBonusAmount = window.stickWinBonus || window.economySettings?.stickWinBonus || 0.00000001;
+            let reward = stickBonusAmount;
+            let chipsReward = 1;
             
             player.balance += reward;
             player.chips += chipsReward;
@@ -942,8 +945,13 @@ function checkStickTask() {
             toast(`🎯 ПОБЕДА! +${reward.toFixed(8)} SOL, +${chipsReward} чипов`);
             playSuccess();
         } else {
+            // Применяем штраф из админ-панели (stickFailPen)
+            const stickFailPenaltyPercent = window.economySettings?.stickFailPen || 15;
+            
             let penalties = [];
             let damage = 5 + Math.floor(Math.random() * 15);
+            // Увеличиваем урон в зависимости от штрафа
+            damage = Math.floor(damage * (1 + stickFailPenaltyPercent / 100));
             player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
             penalties.push(`💔 Оборудование повреждено на ${damage}%`);
             
@@ -1855,7 +1863,9 @@ function steal(target) {
     // Обновляем время последней атаки
     lastPvpAttack = now;
     
-    let chance = Math.max(10, Math.min(80, 30 + player.hashPower / 200 - target.def / 2));
+    // Применяем PvP шанс из настроек балансировки
+    let baseChance = window.pvpChance || 35;
+    let chance = Math.max(10, Math.min(80, baseChance + player.hashPower / 200 - target.def / 2));
     let succ = Math.random() * 100 < chance;
     let stealPct = 0.05 + Math.random() * 0.1;
     
@@ -1875,7 +1885,9 @@ function steal(target) {
         playSuccess();
         toast(`✅ +${stolen} TH/s!`);
     } else {
-        let penalty = 0.1 + Math.random() * 0.15;
+        // Применяем PvP штраф из настроек балансировки
+        let pvpFailPenaltyPercent = window.pvpFailPenalty || window.economySettings?.pvpFailPen || 15;
+        let penalty = (pvpFailPenaltyPercent / 100) + Math.random() * 0.05;
         let lostPower = Math.floor(player.basePower * penalty);
         let oldPower = player.basePower;
         let actualLost = Math.max(1, lostPower);
@@ -2364,6 +2376,10 @@ function updateSim() {
             totalEnergyCost += (rigs[id].energyCost || 0) * c;
         }
     }
+    // Применяем множитель стоимости энергии из админ-панели
+    const energyMult = typeof window.energyCostMultiplier !== 'undefined' ? window.energyCostMultiplier : (window.economySettings?.energyCost || 1);
+    totalEnergyCost = Math.floor(totalEnergyCost * energyMult);
+    
     let powerCost = Math.max(5, Math.floor(totalEnergyCost / 10));
     if (player.mining && player.energy > 0) {
         player.energy = Math.max(0, player.energy - powerCost);
@@ -2474,8 +2490,13 @@ coolEff = Math.min(1.0, coolEff + coolingGearBonus);
         tasks.forEach(t => { if (t.type === "voltage") t.progress++; });
     }
     
+    // Применяем множитель урона от перегрева из админ-панели (overheatDmg)
+    const overheatDamagePercent = window.economySettings?.overheatDmg || 3;
+    
     if (temp > 88 && player.mining) {
         let damage = Math.floor(Math.random() * 2) + 1;
+        // Увеличиваем урон в зависимости от настройки overheatDmg
+        damage = Math.ceil(damage * (1 + overheatDamagePercent / 100));
         player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
         addLog(`⚠️ Температура ${temp}°C! Оборудование повреждено на ${damage}%!`, 'warning');
     }
@@ -2805,6 +2826,46 @@ document.getElementById('serviceBtn').onclick = () => {
 // ============================================
 let windowZIndex = 1000;
 
+// Функция сохранения геометрии окна
+function saveWindowGeometry(win) {
+    if (!win || win.classList.contains('window-maximized')) return;
+    const title = win.querySelector('.window-title')?.innerText;
+    if (!title) return;
+    
+    setTimeout(() => {
+        const rect = {
+            width: win.offsetWidth,
+            height: win.offsetHeight,
+            left: parseInt(win.style.left) || win.offsetLeft,
+            top: parseInt(win.style.top) || win.offsetTop
+        };
+        
+        if (rect.width > 100 && rect.height > 100) {
+            const saves = JSON.parse(localStorage.getItem('windowGeometries') || '{}');
+            saves[title] = rect;
+            localStorage.setItem('windowGeometries', JSON.stringify(saves));
+        }
+    }, 50);
+}
+
+// Функция загрузки геометрии окна
+function loadWindowGeometry(win, defaultW, defaultH, defaultL, defaultT) {
+    const title = win.querySelector('.window-title')?.innerText;
+    if (!title) return false;
+    
+    const saves = JSON.parse(localStorage.getItem('windowGeometries') || '{}');
+    const rect = saves[title];
+    
+    if (rect && rect.width > 100 && rect.height > 100) {
+        win.style.width = rect.width + 'px';
+        win.style.height = rect.height + 'px';
+        win.style.left = rect.left + 'px';
+        win.style.top = rect.top + 'px';
+        return true;
+    }
+    return false;
+}
+
 function createWin(title, html, w = 400, h = 400, l = 100, t = 100) {
     let win = document.createElement('div');
     win.className = 'floating-window';
@@ -2834,111 +2895,112 @@ function createWin(title, html, w = 400, h = 400, l = 100, t = 100) {
     let isMaximized = false;
     let savedRect = { width: w, height: h, left: l, top: t };
     
+    // Поднимаем окно на передний план при клике
     win.addEventListener('mousedown', () => {
         win.style.zIndex = windowZIndex++;
     });
     
+    // Загрузка сохранённой геометрии
+    loadWindowGeometry(win, w, h, l, t);
+    
     // ============================================
-// СОХРАНЕНИЕ И ВОССТАНОВЛЕНИЕ РАЗМЕРОВ И ПОЛОЖЕНИЯ ОКОН (ИСПРАВЛЕННАЯ ВЕРСИЯ)
-// ============================================
-
-function saveWindowGeometry(win) {
-    if (!win || win.classList.contains('window-maximized')) return;
-    const title = win.querySelector('.window-title')?.innerText;
-    if (!title) return;
-    
-    // Ждём рендеринга, чтобы получить реальные размеры
-    setTimeout(() => {
-        const rect = {
-            width: win.offsetWidth,
-            height: win.offsetHeight,
-            left: parseInt(win.style.left) || win.offsetLeft,
-            top: parseInt(win.style.top) || win.offsetTop
-        };
-        
-        // Проверяем, что размеры валидны (не 0)
-        if (rect.width > 100 && rect.height > 100) {
-            const saves = JSON.parse(localStorage.getItem('windowGeometries') || '{}');
-            saves[title] = rect;
-            localStorage.setItem('windowGeometries', JSON.stringify(saves));
-        }
-    }, 50);
-}
-
-function loadWindowGeometry(win, defaultW, defaultH, defaultL, defaultT) {
-    const title = win.querySelector('.window-title')?.innerText;
-    if (!title) return false;
-    
-    const saves = JSON.parse(localStorage.getItem('windowGeometries') || '{}');
-    const rect = saves[title];
-    
-    if (rect && rect.width > 100 && rect.height > 100) {
-        win.style.width = rect.width + 'px';
-        win.style.height = rect.height + 'px';
-        win.style.left = rect.left + 'px';
-        win.style.top = rect.top + 'px';
-        return true;
-    }
-    return false;
-}
-
-// Переопределяем createWin
-const originalCreateWin = createWin;
-createWin = function(title, html, w = 400, h = 400, l = 100, t = 100) {
-    // Сначала создаём окно с оригинальными размерами
-    const win = originalCreateWin(title, html, w, h, l, t);
-    
-    // Пытаемся загрузить сохранённые размеры (перезаписываем если есть)
-    const loaded = loadWindowGeometry(win, w, h, l, t);
-    
-    // Сохраняем геометрию при закрытии
-    const closeBtn = win.querySelector('.close');
-    const originalClose = closeBtn.onclick;
-    closeBtn.onclick = () => {
-        saveWindowGeometry(win);
-        if (originalClose) originalClose();
-        else win.remove();
-    };
-    
-    // Сохраняем при перемещении (по окончании)
+    // ИНДИВИДУАЛЬНОЕ ПЕРЕТАСКИВАНИЕ ДЛЯ КАЖДОГО ОКНА
+    // ============================================
     let isDragging = false;
-    let dragTimer = null;
-    const header = win.querySelector('.window-header');
+    let dragStartX = 0, dragStartY = 0;
+    let winStartLeft = 0, winStartTop = 0;
     
-    const onMouseUp = () => {
+    function onMouseDown(e) {
+        if (e.target === minimizeBtn || e.target === maximizeBtn || e.target === closeBtn) return;
+        if (e.target.closest('.window-btn')) return;
+        
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        winStartLeft = win.offsetLeft;
+        winStartTop = win.offsetTop;
+        
+        // Поднимаем окно на передний план
+        win.style.zIndex = windowZIndex++;
+        
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+    }
+    
+    function onMouseMove(e) {
+        if (!isDragging || isMaximized) return;
+        
+        let newLeft = winStartLeft + (e.clientX - dragStartX);
+        let newTop = winStartTop + (e.clientY - dragStartY);
+        
+        // Ограничение по границам экрана
+        newLeft = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, newLeft));
+        newTop = Math.max(0, Math.min(window.innerHeight - win.offsetHeight, newTop));
+        
+        win.style.left = newLeft + 'px';
+        win.style.top = newTop + 'px';
+    }
+    
+    function onMouseUp() {
         if (isDragging) {
             isDragging = false;
-            if (dragTimer) clearTimeout(dragTimer);
-            dragTimer = setTimeout(() => {
-                if (!win.classList.contains('window-maximized')) saveWindowGeometry(win);
-            }, 100);
+            saveWindowGeometry(win);
         }
+        document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
-    };
-    
-    const onMouseDown = () => {
-        isDragging = true;
-        document.addEventListener('mouseup', onMouseUp);
-    };
+    }
     
     header.addEventListener('mousedown', onMouseDown);
     
-    // Сохраняем при изменении размера
-    let resizeTimeout;
-    const resizeObserver = new ResizeObserver(() => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-            if (!win.classList.contains('window-maximized') && !isDragging) {
-                saveWindowGeometry(win);
-            }
-        }, 200);
-    });
-    resizeObserver.observe(win);
+    // ============================================
+    // ИЗМЕНЕНИЕ РАЗМЕРА ОКНА
+    // ============================================
+    let isResizing = false;
+    let resizeStartX = 0, resizeStartY = 0;
+    let resizeStartW = 0, resizeStartH = 0;
     
-    return win;
-};
-
-    closeBtn.onclick = () => win.remove();
+    if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            resizeStartX = e.clientX;
+            resizeStartY = e.clientY;
+            resizeStartW = win.offsetWidth;
+            resizeStartH = win.offsetHeight;
+            
+            document.addEventListener('mousemove', onResizeMove);
+            document.addEventListener('mouseup', onResizeUp);
+            e.stopPropagation();
+            e.preventDefault();
+        });
+    }
+    
+    function onResizeMove(e) {
+        if (!isResizing || isMaximized) return;
+        
+        let newW = Math.max(250, resizeStartW + (e.clientX - resizeStartX));
+        let newH = Math.max(200, resizeStartH + (e.clientY - resizeStartY));
+        
+        win.style.width = newW + 'px';
+        win.style.height = newH + 'px';
+    }
+    
+    function onResizeUp() {
+        if (isResizing) {
+            isResizing = false;
+            saveWindowGeometry(win);
+        }
+        document.removeEventListener('mousemove', onResizeMove);
+        document.removeEventListener('mouseup', onResizeUp);
+    }
+    
+    // ============================================
+    // КНОПКИ УПРАВЛЕНИЯ ОКНОМ
+    // ============================================
+    closeBtn.onclick = () => {
+        saveWindowGeometry(win);
+        win.remove();
+    };
     
     minimizeBtn.onclick = () => {
         if (isMaximized) maximizeBtn.click();
@@ -2979,51 +3041,6 @@ createWin = function(title, html, w = 400, h = 400, l = 100, t = 100) {
             isMaximized = true;
             maximizeBtn.innerHTML = '❐';
         }
-    };
-    
-    let drag = false, startX, startY, startLeft, startTop;
-    header.onmousedown = (e) => {
-        if (e.target === minimizeBtn || e.target === maximizeBtn || e.target === closeBtn) return;
-        drag = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        startLeft = win.offsetLeft;
-        startTop = win.offsetTop;
-        document.body.style.userSelect = 'none';
-        e.preventDefault();
-    };
-    
-    let resize = false, resizeStartX, resizeStartY, resizeStartW, resizeStartH;
-    if (resizeHandle) {
-        resizeHandle.onmousedown = (e) => {
-            resize = true;
-            resizeStartX = e.clientX;
-            resizeStartY = e.clientY;
-            resizeStartW = win.offsetWidth;
-            resizeStartH = win.offsetHeight;
-            e.stopPropagation();
-            e.preventDefault();
-        };
-    }
-    
-    document.onmousemove = (e) => {
-        if (drag && !isMaximized) {
-            let newLeft = startLeft + (e.clientX - startX);
-            let newTop = startTop + (e.clientY - startY);
-            win.style.left = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, newLeft)) + 'px';
-            win.style.top = Math.max(0, Math.min(window.innerHeight - win.offsetHeight, newTop)) + 'px';
-        }
-        if (resize && !isMaximized) {
-            let newW = Math.max(250, resizeStartW + (e.clientX - resizeStartX));
-            let newH = Math.max(200, resizeStartH + (e.clientY - resizeStartY));
-            win.style.width = newW + 'px';
-            win.style.height = newH + 'px';
-        }
-    };
-    document.onmouseup = () => {
-        drag = false;
-        resize = false;
-        document.body.style.userSelect = '';
     };
     
     return win;
@@ -3505,8 +3522,46 @@ if (!window.socket) {
 
     window.socket.on('economy_update', (settings) => {
         console.log('💰 Экономика обновлена администратором:', settings);
+        
+        // Сохраняем настройки балансировки в глобальные переменные
+        if (settings.stickWinBonus !== undefined) {
+            window.stickWinBonus = parseFloat(settings.stickWinBonus);
+            addLog(`🎁 Стик бонус изменён: ${window.stickWinBonus.toFixed(8)} SOL`, 'info');
+        }
+        if (settings.energyCost !== undefined) {
+            window.energyCostMultiplier = parseFloat(settings.energyCost);
+            addLog(`⚡ Стоимость энергии изменена: x${window.energyCostMultiplier}`, 'info');
+        }
+        if (settings.poolBonus !== undefined && player) {
+            player.poolBonus = settings.poolBonus;
+            addLog(`🤝 Бонус пула изменён: +${settings.poolBonus}%`, 'info');
+            if (typeof recalc === 'function') recalc();
+        }
+        if (settings.overheatDmg !== undefined) {
+            window.overheatDamage = settings.overheatDmg;
+            addLog(`🔥 Урон от перегрева изменён: ${settings.overheatDmg}%`, 'info');
+        }
+        if (settings.voltagePen !== undefined) {
+            window.voltagePenalty = settings.voltagePen;
+            addLog(`⚡ Штраф напряжения изменён: ${settings.voltagePen}%`, 'info');
+        }
+        if (settings.pvpChance !== undefined) {
+            window.pvpChance = settings.pvpChance;
+            addLog(`⚔️ PvP шанс изменён: ${settings.pvpChance}%`, 'info');
+        }
+        if (settings.pvpFailPen !== undefined) {
+            window.pvpFailPenalty = settings.pvpFailPen;
+            addLog(`💔 PvP штраф изменён: ${settings.pvpFailPen}%`, 'info');
+        }
+        if (settings.stickFailPen !== undefined) {
+            window.stickFailPenalty = settings.stickFailPen;
+            addLog(`📉 Стик штраф изменён: ${settings.stickFailPen}%`, 'info');
+        }
+        
+        // Сохраняем полный объект настроек
         window.economySettings = settings;
         
+        if (typeof updateUI === 'function') updateUI();
     });
 
     window.socket.on('connect', () => {
@@ -3551,54 +3606,6 @@ if (!window.socket) {
 // ============================================
 
 if (window.socket) {
-    // Обработчик обновления экономических настроек
-    window.socket.on('economy_update', (settings) => {
-        console.log('💰 Экономика обновлена:', settings);
-
-        // Получение обновлений экономики от админа
-window.socket.on('economy_update', (settings) => {
-    console.log('💰 Экономика обновлена администратором:', settings);
-    
-    // Сохраняем настройки в глобальные переменные
-    window.economySettings = settings;
-    
-    // Показываем уведомление игроку
-    
-});
-        
-        // Сохраняем настройки в глобальную переменную
-        window.economySettings = settings;
-        
-        // Обновляем переменные в игре
-        if (settings.shareReward !== undefined) {
-            window.shareReward = settings.shareReward;
-            addLog(`📊 Награда за шару изменена: ${settings.shareReward} SOL`, 'info');
-        }
-        
-        if (settings.blockReward !== undefined) {
-            window.blockReward = settings.blockReward;
-            addLog(`🏆 Награда за блок изменена: ${settings.blockReward} SOL`, 'info');
-        }
-        
-        if (settings.poolBonus !== undefined && player) {
-            player.poolBonus = settings.poolBonus;
-            addLog(`🤝 Бонус пула изменён: +${settings.poolBonus}%`, 'info');
-            if (typeof recalc === 'function') recalc();
-        }
-        
-        if (settings.energyCost !== undefined) {
-            window.energyCostMultiplier = settings.energyCost;
-            addLog(`⚡ Стоимость энергии изменена: x${settings.energyCost}`, 'info');
-        }
-        
-        // Показываем уведомление игроку
-        
-        playClick();
-        
-        // Обновляем UI если нужно
-        if (typeof updateUI === 'function') updateUI();
-    });
-    
     // Также можно добавить обработчик для отдельных параметров
     window.socket.on('share_reward_update', (reward) => {
         console.log('💰 Награда за шару обновлена:', reward);
