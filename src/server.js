@@ -442,7 +442,7 @@ app.post('/api/admin/balance', isAdmin, async (req, res) => {
         };
         
         // ОТПРАВИТЬ ВСЕМ ИГРОКАМ
-        io.emit('balance_update', global.balanceSettings);
+        io.emit('economy_update', global.balanceSettings);
         
         console.log('⚖️ Балансировка обновлена:', global.balanceSettings);
         res.json({ success: true, settings: global.balanceSettings });

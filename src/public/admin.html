@@ -628,8 +628,8 @@
         <div class="form-group">
             <label>🎁 СТИК БОНУС (SOL)</label>
             <div class="slider-wrapper">
-                <input type="range" id="stickWinBonus" min="0.00000001" max="0.00001000" step="0.00000001" value="0.000001">
-                <span class="range-value" id="stickWinBonusVal">0.000001 SOL</span>
+                <input type="range" id="stickWinBonus" min="0.00000001" max="0.00000100" step="0.00000001" value="0.000001">
+                <span class="range-value" id="stickWinBonusVal">0.00000100 SOL</span>
             </div>
         </div>
         
@@ -951,6 +951,65 @@
     }
 }
 
+    // Функция загрузки настроек балансировки
+    async function loadBalanceSettings() {
+        try {
+            const res = await fetch(`${API_URL}/api/admin/balance`, {
+                headers: { 'Authorization': `Bearer ${adminToken}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                const s = data.settings;
+                
+                const poolBonusEl = document.getElementById('poolBonus');
+                const energyCostEl = document.getElementById('energyCost');
+                const overheatDmgEl = document.getElementById('overheatDmg');
+                const voltagePenEl = document.getElementById('voltagePen');
+                const pvpChanceEl = document.getElementById('pvpChance');
+                const pvpFailPenEl = document.getElementById('pvpFailPen');
+                const stickFailPenEl = document.getElementById('stickFailPen');
+                const stickWinBonusEl = document.getElementById('stickWinBonus');
+                
+                if (poolBonusEl) {
+                    poolBonusEl.value = s.poolBonus || 0;
+                    poolBonusEl.oninput();
+                }
+                if (energyCostEl) {
+                    energyCostEl.value = s.energyCost || 1;
+                    energyCostEl.oninput();
+                }
+                if (overheatDmgEl) {
+                    overheatDmgEl.value = s.overheatDmg || 0;
+                    overheatDmgEl.oninput();
+                }
+                if (voltagePenEl) {
+                    voltagePenEl.value = s.voltagePen || 0;
+                    voltagePenEl.oninput();
+                }
+                if (pvpChanceEl) {
+                    pvpChanceEl.value = s.pvpChance || 0;
+                    pvpChanceEl.oninput();
+                }
+                if (pvpFailPenEl) {
+                    pvpFailPenEl.value = s.pvpFailPen || 0;
+                    pvpFailPenEl.oninput();
+                }
+                if (stickFailPenEl) {
+                    stickFailPenEl.value = s.stickFailPen || 0;
+                    stickFailPenEl.oninput();
+                }
+                if (stickWinBonusEl) {
+                    stickWinBonusEl.value = s.stickWinBonus || 0.000001;
+                    stickWinBonusEl.oninput();
+                }
+                
+                addLog(`⚖️ Настройки балансировки загружены`, 'success');
+            }
+        } catch (err) {
+            addLog(`❌ Ошибка загрузки балансировки: ${err.message}`, 'error');
+        }
+    }
+
     async function updatePlayerOnServer(playerId, updateData) {
         if (!adminToken) return false;
         try {
@@ -1167,6 +1226,13 @@ function initAdminSocket() {
         }
         addChatMessage(name, text, "admin");
         addLog(`📢 ${name}: "${text}"`, 'success');
+    });
+    
+    // Обработчик обновления экономики от сервера
+    window.adminSocket.on('economy_update', (settings) => {
+        console.log('💰 Экономика обновлена:', settings);
+        loadBalanceSettings();
+        addLog(`💰 Настройки экономики обновлены`, 'success');
     });
 }
 
@@ -1432,9 +1498,22 @@ window.clearChat = function() {
         const stickWinBonus = document.getElementById('stickWinBonus');
         if (stickWinBonus) {
             stickWinBonus.oninput = () => {
-                document.getElementById('stickWinBonusVal').innerText = parseFloat(stickWinBonus.value).toFixed(8) + ' SOL';
+                const val = parseFloat(stickWinBonus.value);
+                document.getElementById('stickWinBonusVal').innerText = val.toFixed(8) + ' SOL';
             };
         }
+        
+        // Инициализация значений при загрузке
+        setTimeout(() => {
+            if (poolBonus) poolBonus.oninput();
+            if (energyCost) energyCost.oninput();
+            if (overheatDmg) overheatDmg.oninput();
+            if (voltagePen) voltagePen.oninput();
+            if (pvpChance) pvpChance.oninput();
+            if (pvpFailPen) pvpFailPen.oninput();
+            if (stickFailPen) stickFailPen.oninput();
+            if (stickWinBonus) stickWinBonus.oninput();
+        }, 100);
     }
 
     // ========== TABS ==========
@@ -1643,15 +1722,30 @@ window.clearChat = function() {
     document.getElementById('saveBalanceBtn')?.addEventListener('click', async () => {
         console.log('🔧 ===== НАЧАЛО ОТПРАВКИ БАЛАНСИРОВКИ =====');
         
+        const poolBonusEl = document.getElementById('poolBonus');
+        const energyCostEl = document.getElementById('energyCost');
+        const overheatDmgEl = document.getElementById('overheatDmg');
+        const voltagePenEl = document.getElementById('voltagePen');
+        const pvpChanceEl = document.getElementById('pvpChance');
+        const pvpFailPenEl = document.getElementById('pvpFailPen');
+        const stickFailPenEl = document.getElementById('stickFailPen');
+        const stickWinBonusEl = document.getElementById('stickWinBonus');
+        
+        if (!poolBonusEl || !energyCostEl || !stickWinBonusEl) {
+            addLog(`❌ Элементы управления не найдены`, 'error');
+            showToast(`❌ Ошибка: элементы не найдены`);
+            return;
+        }
+        
         const balanceData = {
-            poolBonus: parseInt(document.getElementById('poolBonus').value),
-            energyCost: parseInt(document.getElementById('energyCost').value),
-            overheatDmg: parseInt(document.getElementById('overheatDmg').value),
-            voltagePen: parseInt(document.getElementById('voltagePen').value),
-            pvpChance: parseInt(document.getElementById('pvpChance').value),
-            pvpFailPen: parseInt(document.getElementById('pvpFailPen').value),
-            stickFailPen: parseInt(document.getElementById('stickFailPen').value),
-            stickWinBonus: parseFloat(document.getElementById('stickWinBonus').value)
+            poolBonus: parseInt(poolBonusEl.value) || 0,
+            energyCost: parseInt(energyCostEl.value) || 1,
+            overheatDmg: parseInt(overheatDmgEl.value) || 0,
+            voltagePen: parseInt(voltagePenEl.value) || 0,
+            pvpChance: parseInt(pvpChanceEl.value) || 0,
+            pvpFailPen: parseInt(pvpFailPenEl.value) || 0,
+            stickFailPen: parseInt(stickFailPenEl.value) || 0,
+            stickWinBonus: parseFloat(stickWinBonusEl.value) || 0.000001
         };
         
         console.log('🔧 Данные балансировки:', balanceData);
@@ -1670,6 +1764,8 @@ window.clearChat = function() {
             if (data.success) {
                 addLog(`⚖️ Настройки балансировки сохранены`, 'success');
                 showToast(`✅ Балансировка обновлена`);
+                // Загружаем актуальные настройки с сервера
+                loadBalanceSettings();
             } else {
                 addLog(`❌ Ошибка: ${data.error}`, 'error');
                 showToast(`❌ Ошибка сохранения`);
@@ -1678,6 +1774,7 @@ window.clearChat = function() {
             addLog(`❌ Ошибка: ${err.message}`, 'error');
             showToast(`❌ Ошибка соединения`);
         }
+        console.log('🔧 ===== КОНЕЦ ОТПРАВКИ =====');
     });
         
     document.getElementById('backupBtn')?.addEventListener('click', createBackup);
@@ -1753,6 +1850,7 @@ window.clearChat = function() {
         initDragAndDrop();
         loadPlayersFromServer();
         loadEconomySettings();
+        loadBalanceSettings();
         
         addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
         console.log('✅ Инициализация завершена');
@@ -1760,6 +1858,7 @@ window.clearChat = function() {
     
     setTimeout(function() {
         loadEconomySettings();
+        loadBalanceSettings();
     }, 1000);
     
     init();
