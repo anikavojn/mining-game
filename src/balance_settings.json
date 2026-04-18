@@ -1,0 +1,12 @@
+{
+    "shareReward": 0.00005,
+    "blockReward": 0.1,
+    "poolBonus": 20,
+    "energyCost": 1.5,
+    "overheatDmg": 10,
+    "voltagePen": 30,
+    "pvpChance": 70,
+    "pvpFailPen": 30,
+    "stickFailPen": 30,
+    "stickWinBonus": 0.0000001
+}

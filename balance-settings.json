@@ -1,0 +1,15 @@
+{
+  "shareReward": 1e-8,
+  "blockReward": 0.000001,
+  "chipsReward": 1,
+  "sellTax": 30,
+  "poolBonus": 100,
+  "energyCost": 10,
+  "overheatDmg": 100,
+  "voltagePen": 100,
+  "pvpChance": 100,
+  "pvpFailPen": 100,
+  "stickFailPen": 100,
+  "stickWinBonus": 0.000001,
+  "updatedAt": "2026-04-16T11:48:08.945Z"
+}

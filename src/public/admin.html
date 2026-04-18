@@ -19,7 +19,6 @@
             min-height: 100vh;
         }
 
-        /* ========== 4 КОЛОНКИ КАК В ИГРЕ ========== */
         .admin-grid {
             display: grid;
             grid-template-columns: 320px 1fr 1fr 280px;
@@ -28,7 +27,6 @@
             margin: 0 auto;
         }
 
-        /* Общий стиль панелей — как в игре */
         .admin-panel {
             background: rgba(0,0,0,0.3);
             backdrop-filter: blur(2px);
@@ -41,7 +39,6 @@
             max-height: calc(100vh - 40px);
         }
 
-        /* Левая колонка */
         .col-left {
             background: rgba(0,0,0,0.3);
             border-radius: 20px;
@@ -51,14 +48,12 @@
             gap: 4px;
         }
 
-        /* Центральные колонки */
         .col-center {
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
 
-        /* Правая колонка */
         .col-right {
             background: rgba(0,0,0,0.3);
             border-radius: 20px;
@@ -68,7 +63,6 @@
             gap: 12px;
         }
 
-        /* Карточки в стиле игры */
         .card {
             background: #0f1419;
             border: 2px solid #3a6f8f;
@@ -107,7 +101,6 @@
             display: none;
         }
 
-        /* Формы в стиле игры */
         .form-group {
             margin-bottom: 12px;
         }
@@ -145,7 +138,6 @@
             box-shadow: 0 0 5px rgba(255,170,102,0.3);
         }
 
-        /* Слайдеры в стиле игры */
         .slider-wrapper {
             display: flex;
             align-items: center;
@@ -189,7 +181,6 @@
             text-align: right;
         }
 
-        /* Кнопки в стиле игры */
         .btn {
             padding: 8px 14px;
             font-size: 11px;
@@ -250,7 +241,6 @@
             margin-top: 10px;
         }
 
-        /* Табы в стиле игры */
         .tabs {
             display: flex;
             gap: 4px;
@@ -288,7 +278,6 @@
             display: block;
         }
 
-        /* Список игроков */
         .players-scroll {
             max-height: 400px;
             overflow-y: auto;
@@ -328,7 +317,6 @@
             gap: 6px;
         }
 
-        /* Лог-бокс как в игре */
         .log-box {
             background: #0a1118;
             border-radius: 12px;
@@ -350,7 +338,6 @@
         .log-line.error { color: #ff8888; border-left: 2px solid #ff8888; padding-left: 6px; }
         .log-line.warning { color: #ffcc66; border-left: 2px solid #ffcc66; padding-left: 6px; }
 
-        /* Чат в стиле игры */
         .chat-box {
             background: #0a1118;
             border-radius: 12px;
@@ -405,7 +392,6 @@
             border-color: #ffaa66;
         }
 
-        /* Статус бар в стиле игры */
         .status-bar {
             background: #0a1118;
             border: 2px solid #3a6f8f;
@@ -435,7 +421,6 @@
             50% { opacity: 0.5; }
         }
 
-        /* Тосты */
         .toast-stack {
             position: fixed;
             bottom: 20px;
@@ -457,7 +442,6 @@
             font-family: 'Courier New', monospace;
         }
 
-        /* Модалка */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -517,7 +501,6 @@
             margin: 12px 0;
         }
 
-        /* Скрытие скролла но с возможностью скролла */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -532,7 +515,6 @@
             border-radius: 3px;
         }
 
-        /* Принудительные цвета для чата админки */
         #chatMessages,
         #chatMessages *,
         .chat-box,
@@ -560,7 +542,6 @@
             color: #ffcc88 !important;
         }
 
-        /* Увеличение шрифта в чате админки */
         #chatMessages,
         .chat-box,
         .chat-message,
@@ -581,7 +562,80 @@
             <div style="font-size: 20px; font-weight: bold; color: #ffcc66; font-family: monospace;" id="adminBalance">АДМИН-РЕЖИМ</div>
             <div style="font-size: 9px; color: #8cc9ff;">FULL ACCESS</div>
         </div>
-
+                <!-- БАЛАНСИРОВКА -->
+<div class="card">
+    <div class="card-header" onclick="toggleCard(this)">
+        <h3>⚖️ БАЛАНСИРОВКА</h3>
+        <span>▼</span>
+    </div>
+    <div class="card-body">
+        <div class="form-group">
+            <label>🤝 БОНУС ПУЛА (%)</label>
+            <div class="slider-wrapper">
+                <input type="range" id="poolBonus" min="0" max="100" value="15" step="1">
+                <span class="range-value" id="poolBonusVal">15%</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>⚡ СТОИМОСТЬ ЭНЕРГИИ (x)</label>
+            <div class="slider-wrapper">
+                <input type="range" id="energyCost" min="1" max="100" value="1" step="1">
+                <span class="range-value" id="energyCostVal">1x</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>🔥 УРОН ОТ ПЕРЕГРЕВА (%)</label>
+            <div class="slider-wrapper">
+                <input type="range" id="overheatDmg" min="0" max="100" value="3" step="1">
+                <span class="range-value" id="overheatVal">3%</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>⚡ ШТРАФ НАПРЯЖЕНИЯ (%)</label>
+            <div class="slider-wrapper">
+                <input type="range" id="voltagePen" min="0" max="100" value="15" step="1">
+                <span class="range-value" id="voltageVal">15%</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>⚔️ PVP ШАНС (%)</label>
+            <div class="slider-wrapper">
+                <input type="range" id="pvpChance" min="0" max="100" value="35" step="1">
+                <span class="range-value" id="pvpVal">35%</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>💔 PVP ШТРАФ (%)</label>
+            <div class="slider-wrapper">
+                <input type="range" id="pvpFailPen" min="0" max="100" value="15" step="1">
+                <span class="range-value" id="pvpFailPenVal">15%</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>🎮 СТИК ШТРАФ (%)</label>
+            <div class="slider-wrapper">
+                <input type="range" id="stickFailPen" min="0" max="100" value="15" step="1">
+                <span class="range-value" id="stickFailPenVal">15%</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>🎁 СТИК БОНУС (SOL)</label>
+            <div class="slider-wrapper">
+                <input type="range" id="stickWinBonus" min="0.00000001" max="0.00001000" step="0.00000001" value="0.000001">
+                <span class="range-value" id="stickWinBonusVal">0.000001 SOL</span>
+            </div>
+        </div>
+        
+        <button class="btn btn-primary btn-block" id="saveBalanceBtn">💾 СОХРАНИТЬ</button>
+    </div>
+</div>
         <!-- Управление сервером -->
         <div class="card">
             <div class="card-header" onclick="toggleCard(this)">
@@ -640,8 +694,7 @@
             </div>
         </div>
     </div>
-
-    <!-- КОЛОНКА 2 (ЦЕНТР-ЛЕВАЯ) — Игроки + Балансировка -->
+        <!-- КОЛОНКА 2 (ЦЕНТР-ЛЕВАЯ) — Игроки + Дополнительные настройки -->
     <div class="col-center">
         <!-- Игроки -->
         <div class="card">
@@ -665,17 +718,28 @@
             </div>
         </div>
 
-        <!-- Балансировка -->
+        <!-- Дополнительные настройки -->
         <div class="card">
             <div class="card-header" onclick="toggleCard(this)">
-                <h3>⚖️ БАЛАНСИРОВКА</h3>
+                <h3>⚙️ ДОПОЛНИТЕЛЬНЫЕ НАСТРОЙКИ</h3>
                 <span>▼</span>
             </div>
             <div class="card-body">
-                <div class="form-group"><label>💔 УРОН ОТ ПЕРЕГРЕВА</label><div class="slider-wrapper"><input type="range" id="overheatDmg" min="1" max="15" value="3"><span class="range-value" id="overheatVal">3%</span></div></div>
-                <div class="form-group"><label>⚡ ШТРАФ ЗА НАПРЯЖЕНИЕ</label><div class="slider-wrapper"><input type="range" id="voltagePen" min="5" max="30" value="15"><span class="range-value" id="voltageVal">15%</span></div></div>
-                <div class="form-group"><label>🕵️ ШАНС АТАКИ PVP</label><div class="slider-wrapper"><input type="range" id="pvpChance" min="10" max="70" value="35"><span class="range-value" id="pvpVal">35%</span></div></div>
-                <button class="btn btn-primary btn-block" id="applyBalanceBtn">⚙️ ПРИМЕНИТЬ</button>
+                <div class="form-group">
+                    <label>🎯 МАКСИМАЛЬНЫЙ УРОВЕНЬ</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="maxLevel" min="1" max="100" value="50" step="1">
+                        <span class="range-value" id="maxLevelVal">50</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>⏱️ ВРЕМЯ АВТОСОХРАНЕНИЯ (сек)</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="autosaveTime" min="10" max="300" value="60" step="5">
+                        <span class="range-value" id="autosaveTimeVal">60 сек</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-block" id="applyExtraBtn">💾 ПРИМЕНИТЬ</button>
             </div>
         </div>
     </div>
@@ -709,18 +773,17 @@
                     <div class="chat-message"><span class="chat-name admin">🔧 СИСТЕМА:</span> <span class="chat-text">Вы можете отправлять сообщения всем игрокам</span></div>
                 </div>
                 <div class="chat-input-area">
-    <input type="text" id="chatInput" placeholder="Введите сообщение для всех игроков..." maxlength="200">
-    <button class="btn btn-sm btn-primary" id="sendChatBtn">📨 ОТПРАВИТЬ</button>
-    <button class="btn btn-sm btn-danger" id="clearChatBtn" onclick="clearChatForAll()">🗑️ ОЧИСТИТЬ ЧАТ</button>
-</div>
+                    <input type="text" id="chatInput" placeholder="Введите сообщение для всех игроков..." maxlength="200">
+                    <button class="btn btn-sm btn-primary" id="sendChatBtn">📨 ОТПРАВИТЬ</button>
+                    <button class="btn btn-sm btn-danger" id="clearChatBtn" onclick="clearChatForAll()">🗑️ ОЧИСТИТЬ ЧАТ</button>
+                </div>
                 <div style="font-size: 9px; color: #6f9fbf; margin-top: 8px; text-align: center;">
                     💡 Сообщения видны всем активным игрокам
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- КОЛОНКА 4 (ПРАВАЯ) — Бэкапы и статус -->
+        <!-- КОЛОНКА 4 (ПРАВАЯ) — Бэкапы и статус -->
     <div class="col-right">
         <!-- Бэкапы -->
         <div class="card">
@@ -761,32 +824,23 @@
 
         <!-- Статус бар -->
         <div class="status-bar">
-    <div><span class="dot"></span> АДМИН АКТИВЕН</div>
-    <div>🕐 <span id="lastUpdate">--:--:--</span></div>
-    <div style="display: flex; gap: 12px; align-items: center;">
-        <span>🔒 ПОЛНЫЙ КОНТРОЛЬ</span>
-        <button onclick="logout()" style="
-    background: #2a1a1a;
-    border: 1px solid #ff6666;
-    color: #ffaaaa;
-    padding: 4px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-    font-size: 10px;
-    font-weight: bold;
-">🔓 ВЫХОД</button>
-
-<script>
-function logout() {
-    if (confirm('Выйти из админ-панели?')) {
-        localStorage.removeItem('admin_token');
-        location.reload();
-    }
-}
-</script>
-    </div>
-</div>
+            <div><span class="dot"></span> АДМИН АКТИВЕН</div>
+            <div>🕐 <span id="lastUpdate">--:--:--</span></div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <span>🔒 ПОЛНЫЙ КОНТРОЛЬ</span>
+                <button onclick="logout()" style="
+                    background: #2a1a1a;
+                    border: 1px solid #ff6666;
+                    color: #ffaaaa;
+                    padding: 4px 12px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-family: 'Courier New', monospace;
+                    font-size: 10px;
+                    font-weight: bold;
+                ">🔓 ВЫХОД</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -798,7 +852,6 @@ function logout() {
         <button class="btn btn-primary btn-block" id="saveEditBtn">💾 СОХРАНИТЬ</button>
     </div>
 </div>
-
 <script>
     // ========== ДАННЫЕ ==========
     
@@ -876,7 +929,8 @@ function logout() {
         }
     }
 
-    async function loadEconomySettings() {
+    
+            async function loadEconomySettings() {
     try {
         const res = await fetch(`${API_URL}/api/admin/economy`, {
             headers: { 'Authorization': `Bearer ${adminToken}` }
@@ -885,7 +939,7 @@ function logout() {
         if (data.success) {
             const s = data.settings;
             document.getElementById('shareReward').value = Number(s.shareReward).toFixed(8);
-            document.getElementById('blockReward').value = Number(s.blockReward).toFixed(8);  // ← было 5, стало 8
+            document.getElementById('blockReward').value = Number(s.blockReward).toFixed(8);
             document.getElementById('chipsReward').value = s.chipsReward;
             document.getElementById('sellTax').value = s.sellTax;
             const sellTaxVal = document.getElementById('sellTaxVal');
@@ -1044,8 +1098,7 @@ function logout() {
             await unbanPlayerOnServer(id);
         }
     }
-
-        // ========== СОКЕТ ДЛЯ АДМИНКИ ==========
+            // ========== СОКЕТ ДЛЯ АДМИНКИ ==========
     
 function initAdminSocket() {
     let socketUrl;
@@ -1057,7 +1110,6 @@ function initAdminSocket() {
     
     console.log('🔌 Подключение к сокету:', socketUrl);
     
-    // ГЛАВНОЕ: создаём ГЛОБАЛЬНУЮ переменную
     window.adminSocket = io(socketUrl, {
         auth: { token: localStorage.getItem('admin_token') }
     });
@@ -1121,29 +1173,21 @@ function initAdminSocket() {
 // Очистка чата админки
 window.clearChat = function() {
     if (confirm('Очистить историю чата в админ-панели? (сообщения у игроков останутся)')) {
-        // Очищаем массив сообщений
         chatMessages = [];
-        
-        // Добавляем системное сообщение
         chatMessages.push({ 
             name: "🔧 СИСТЕМА", 
             text: "История чата очищена администратором", 
             type: "system" 
         });
-        
-        // Перерисовываем чат
         if (typeof renderChat === 'function') {
             renderChat();
         }
-        
-        // Логируем действие
         if (typeof addLog === 'function') {
             addLog(`🗑️ История чата в админке очищена`, 'warning');
         }
         if (typeof showToast === 'function') {
             showToast(`🗑️ Чат админки очищен`);
         }
-        
         console.log('✅ Чат админки очищен');
     }
 };
@@ -1176,110 +1220,102 @@ window.clearChat = function() {
     let lastSentTime = 0;
 
     function sendAdminMessage() {
-    const input = document.getElementById('chatInput');
-    const text = input?.value.trim();
-    if (!text) return;
-    
-    const now = Date.now();
-    if (lastSentMsg === text && now - lastSentTime < 3000) {
-        console.log('🔄 Дубль отправки игнорирован');
-        return;
-    }
-    lastSentMsg = text;
-    lastSentTime = now;
-    
-    if (window.adminSocket && window.adminSocket.connected) {
-        // Отправляем на сервер
-        window.adminSocket.emit('admin_message', {
-            text: text,
-            username: '👑 АДМИН'
-        });
+        const input = document.getElementById('chatInput');
+        const text = input?.value.trim();
+        if (!text) return;
         
-        // ❌ НЕ ДОБАВЛЯЕМ ЛОКАЛЬНО — ждём от сервера
-        // addChatMessage("👑 АДМИН", text, "admin");  ← УБРАТЬ ЭТУ СТРОКУ!
-        
-        addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
-        input.value = '';
-    } else {
-        addLog(`❌ Сокет не подключён. Попробуйте обновить страницу.`, 'error');
-        showToast(`❌ Сокет не подключён`);
-    }
-}
-
-    // ========== АДМИН ЛОГИН ==========
-    function showAdminLogin() {
-    const loginHtml = `
-        <div id="adminLoginModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; align-items: center; justify-content: center;">
-            <div style="background: #0f1419; border: 2px solid #ff6666; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <div style="font-size: 20px; font-weight: bold; color: #ff6666;">👑 АДМИН ПАНЕЛЬ</div>
-                    <div style="font-size: 12px; color: #8cc9ff;">Вход в систему управления</div>
-                </div>
-                <input type="text" id="adminUsername" placeholder="Логин" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                <input type="password" id="adminPassword" placeholder="Пароль" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
-                <button id="adminLoginBtn" style="width: 100%; padding: 12px; background: #8a2a2a; border: 2px solid #ff6666; color: white; border-radius: 40px; font-weight: bold; cursor: pointer;">ВОЙТИ</button>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', loginHtml);
-    
-    document.getElementById('adminLoginBtn').onclick = async () => {
-        const username = document.getElementById('adminUsername').value;
-        const password = document.getElementById('adminPassword').value;
-        
-        try {
-            const res = await fetch(`${API_URL}/api/auth/admin/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (data.success) {
-                localStorage.setItem('admin_token', data.token);
-                document.getElementById('adminLoginModal').remove();
-                adminToken = localStorage.getItem('admin_token');
-                await loadPlayersFromServer();
-                addLog(`🔐 Администратор вошёл`, 'success');
-                if (window.adminSocket) window.adminSocket.disconnect();
-                initAdminSocket();
-            } else {
-                alert('Ошибка входа: ' + data.error);
-            }
-        } catch (err) {
-            alert('Ошибка соединения с сервером');
+        const now = Date.now();
+        if (lastSentMsg === text && now - lastSentTime < 3000) {
+            console.log('🔄 Дубль отправки игнорирован');
+            return;
         }
-    };
-}
+        lastSentMsg = text;
+        lastSentTime = now;
+        
+        if (window.adminSocket && window.adminSocket.connected) {
+            window.adminSocket.emit('admin_message', {
+                text: text,
+                username: '👑 АДМИН'
+            });
+            addLog(`💬 АДМИН → ВСЕМ: "${text}"`, 'success');
+            input.value = '';
+        } else {
+            addLog(`❌ Сокет не подключён. Попробуйте обновить страницу.`, 'error');
+            showToast(`❌ Сокет не подключён`);
+        }
+    }
+        // ========== АДМИН ЛОГИН ==========
+    function showAdminLogin() {
+        const loginHtml = `
+            <div id="adminLoginModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; align-items: center; justify-content: center;">
+                <div style="background: #0f1419; border: 2px solid #ff6666; border-radius: 20px; padding: 30px; width: 90%; max-width: 400px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="font-size: 20px; font-weight: bold; color: #ff6666;">👑 АДМИН ПАНЕЛЬ</div>
+                        <div style="font-size: 12px; color: #8cc9ff;">Вход в систему управления</div>
+                    </div>
+                    <input type="text" id="adminUsername" placeholder="Логин" style="width: 100%; margin-bottom: 10px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
+                    <input type="password" id="adminPassword" placeholder="Пароль" style="width: 100%; margin-bottom: 15px; padding: 10px; background: #0a1118; border: 1px solid #ff6666; color: white; border-radius: 10px;">
+                    <button id="adminLoginBtn" style="width: 100%; padding: 12px; background: #8a2a2a; border: 2px solid #ff6666; color: white; border-radius: 40px; font-weight: bold; cursor: pointer;">ВОЙТИ</button>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', loginHtml);
+        
+        document.getElementById('adminLoginBtn').onclick = async () => {
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            try {
+                const res = await fetch(`${API_URL}/api/auth/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem('admin_token', data.token);
+                    document.getElementById('adminLoginModal').remove();
+                    adminToken = localStorage.getItem('admin_token');
+                    await loadPlayersFromServer();
+                    addLog(`🔐 Администратор вошёл`, 'success');
+                    if (window.adminSocket) window.adminSocket.disconnect();
+                    initAdminSocket();
+                } else {
+                    alert('Ошибка входа: ' + data.error);
+                }
+            } catch (err) {
+                alert('Ошибка соединения с сервером');
+            }
+        };
+    }
 
     async function checkAdminAuth() {
-  const token = localStorage.getItem('admin_token');  
-  if (!token) return false;
-  
-  // Проверка токена
-  const response = await fetch('/api/admin/players', {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  
-  if (response.status === 403) {
-    // Токен не работает — удаляем и просим войти
-    localStorage.removeItem('admin_token');
-    alert('Сессия истекла, войдите заново');
-    return false;
-  }
-  return true;
-}
-
-function clearChatForAll() {
-    console.log('🧹 Отправлена команда очистки чата для всех игроков');
-    if (window.adminSocket && window.adminSocket.connected) {
-        window.adminSocket.emit('clear_chat_for_all');
-        addLog('🧹 Отправлена команда очистки чата для всех игроков', 'warning');
-        showToast('✅ Команда отправлена');
-    } else {
-        addLog('❌ Сокет не подключён', 'error');
-        showToast('❌ Нет соединения с сервером');
+        const token = localStorage.getItem('admin_token');  
+        if (!token) return false;
+        
+        const response = await fetch('/api/admin/players', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.status === 403) {
+            localStorage.removeItem('admin_token');
+            alert('Сессия истекла, войдите заново');
+            return false;
+        }
+        return true;
     }
-}
+
+    function clearChatForAll() {
+        console.log('🧹 Отправлена команда очистки чата для всех игроков');
+        if (window.adminSocket && window.adminSocket.connected) {
+            window.adminSocket.emit('clear_chat_for_all');
+            addLog('🧹 Отправлена команда очистки чата для всех игроков', 'warning');
+            showToast('✅ Команда отправлена');
+        } else {
+            addLog('❌ Сокет не подключён', 'error');
+            showToast('❌ Нет соединения с сервером');
+        }
+    }
 
     // ========== ГЛОБАЛЬНЫЕ СОБЫТИЯ ==========
     function startGlobalEvent() {
@@ -1310,8 +1346,7 @@ function clearChatForAll() {
             if (eventTimer) clearInterval(eventTimer);
         } else showToast(`❌ Нет активных событий`);
     }
-
-    // ========== БЭКАПЫ ==========
+        // ========== БЭКАПЫ ==========
     function createBackup() {
         const backup = { id: Date.now(), date: new Date().toLocaleString(), players: JSON.parse(JSON.stringify(players)) };
         backups.unshift(backup);
@@ -1349,19 +1384,57 @@ function clearChatForAll() {
 
     // ========== СЛАЙДЕРЫ ==========
     function bindSliders() {
-        const hashMult = document.getElementById('hashMult');
-        const incomeMult = document.getElementById('incomeMult');
-        const sellTax = document.getElementById('sellTax');
-        const overheatDmg = document.getElementById('overheatDmg');
-        const voltagePen = document.getElementById('voltagePen');
-        const pvpChance = document.getElementById('pvpChance');
+        const poolBonus = document.getElementById('poolBonus');
+        if (poolBonus) {
+            poolBonus.oninput = () => document.getElementById('poolBonusVal').innerText = poolBonus.value + '%';
+        }
         
-        if (hashMult) hashMult.oninput = () => document.getElementById('hashMultVal').innerText = hashMult.value + '%';
-        if (incomeMult) incomeMult.oninput = () => document.getElementById('incomeMultVal').innerText = incomeMult.value + '%';
-        if (sellTax) sellTax.oninput = () => document.getElementById('sellTaxVal').innerText = sellTax.value + '%';
-        if (overheatDmg) overheatDmg.oninput = () => document.getElementById('overheatVal').innerText = overheatDmg.value + '%';
-        if (voltagePen) voltagePen.oninput = () => document.getElementById('voltageVal').innerText = voltagePen.value + '%';
-        if (pvpChance) pvpChance.oninput = () => document.getElementById('pvpVal').innerText = pvpChance.value + '%';
+        const maxLevel = document.getElementById('maxLevel');
+        if (maxLevel) {
+            maxLevel.oninput = () => document.getElementById('maxLevelVal').innerText = maxLevel.value;
+        }
+        
+        const autosaveTime = document.getElementById('autosaveTime');
+        if (autosaveTime) {
+            autosaveTime.oninput = () => document.getElementById('autosaveTimeVal').innerText = autosaveTime.value + ' сек';
+        }
+        
+        const energyCost = document.getElementById('energyCost');
+        if (energyCost) {
+            energyCost.oninput = () => document.getElementById('energyCostVal').innerText = energyCost.value + 'x';
+        }
+        
+        const overheatDmg = document.getElementById('overheatDmg');
+        if (overheatDmg) {
+            overheatDmg.oninput = () => document.getElementById('overheatVal').innerText = overheatDmg.value + '%';
+        }
+        
+        const voltagePen = document.getElementById('voltagePen');
+        if (voltagePen) {
+            voltagePen.oninput = () => document.getElementById('voltageVal').innerText = voltagePen.value + '%';
+        }
+        
+        const pvpChance = document.getElementById('pvpChance');
+        if (pvpChance) {
+            pvpChance.oninput = () => document.getElementById('pvpVal').innerText = pvpChance.value + '%';
+        }
+        
+        const pvpFailPen = document.getElementById('pvpFailPen');
+        if (pvpFailPen) {
+            pvpFailPen.oninput = () => document.getElementById('pvpFailPenVal').innerText = pvpFailPen.value + '%';
+        }
+        
+        const stickFailPen = document.getElementById('stickFailPen');
+        if (stickFailPen) {
+            stickFailPen.oninput = () => document.getElementById('stickFailPenVal').innerText = stickFailPen.value + '%';
+        }
+        
+        const stickWinBonus = document.getElementById('stickWinBonus');
+        if (stickWinBonus) {
+            stickWinBonus.oninput = () => {
+                document.getElementById('stickWinBonusVal').innerText = parseFloat(stickWinBonus.value).toFixed(8) + ' SOL';
+            };
+        }
     }
 
     // ========== TABS ==========
@@ -1380,14 +1453,12 @@ function clearChatForAll() {
     }
 
     function toggleCard(header) {
-    const body = header.closest('.card').querySelector('.card-body');
-    const arrow = header.querySelector('span');
-    body.classList.toggle('collapsed');
-    arrow.innerHTML = body.classList.contains('collapsed') ? '▲' : '▼';
-    
-    // Сохраняем состояние
-    saveCardsState();
-}
+        const body = header.closest('.card').querySelector('.card-body');
+        const arrow = header.querySelector('span');
+        body.classList.toggle('collapsed');
+        arrow.innerHTML = body.classList.contains('collapsed') ? '▲' : '▼';
+        saveCardsState();
+    }
 
     // ========== ПОИСК ==========
     function searchPlayers() {
@@ -1405,13 +1476,11 @@ function clearChatForAll() {
                 <div class="player-actions">
                     <button class="btn btn-sm" onclick="openEdit(${p.id})">✏️</button>
                     <button class="btn btn-sm btn-danger" onclick="banPlayer(${p.id})">🚫</button>
-                    
                 </div>
             </div>
         `).join('');
     }
-
-    // ========== ДИАГНОСТИЧЕСКАЯ ФУНКЦИЯ ==========
+        // ========== ДИАГНОСТИЧЕСКАЯ ФУНКЦИЯ ==========
     async function testApiConnection() {
         console.log('🔧 ТЕСТ СОЕДИНЕНИЯ С СЕРВЕРОМ');
         console.log('🔧 API_URL:', API_URL);
@@ -1439,208 +1508,195 @@ function clearChatForAll() {
         }
     }
 
-   // ========== ИНИЦИАЛИЗАЦИЯ ==========
-function bindEvents() {
-    // Кнопка отправки системного сообщения
-    const sendMsgBtn = document.getElementById('sendMsgBtn');
-    if (sendMsgBtn) {
-        sendMsgBtn.addEventListener('click', () => {
-            const msg = document.getElementById('sysMsg')?.value.trim();
-            if (msg) {
-                addLog(`📡 ГЛОБАЛЬНОЕ СООБЩЕНИЕ: "${msg}"`, 'success');
-                showToast(`📡 Сообщение отправлено`);
-                const sysMsg = document.getElementById('sysMsg');
-                if (sysMsg) sysMsg.value = '';
-            }
-        });
-    }
-    
-    // КНОПКА ОЧИСТКИ ЧАТА
-const clearChatBtn = document.getElementById('clearChatBtn');
-if (clearChatBtn) {
-    clearChatBtn.onclick = function() {
-        console.log('🔘 Кнопка очистки чата нажата');
-        if (confirm('Очистить чат у ВСЕХ игроков?')) {
-            if (window.adminSocket && window.adminSocket.connected) {
-                window.adminSocket.emit('clear_chat_for_all');
-                addLog('🧹 Отправлена команда очистки чата для всех игроков', 'warning');
-                showToast('✅ Команда отправлена');
-            } else {
-                addLog('❌ Сокет не подключён', 'error');
-                showToast('❌ Нет соединения с сервером');
-            }
-        }
-    };
-}
-    
-    // Кнопки событий
-    const startEventBtn = document.getElementById('startEventBtn');
-    if (startEventBtn) startEventBtn.addEventListener('click', startGlobalEvent);
-    
-    const stopEventBtn = document.getElementById('stopEventBtn');
-    if (stopEventBtn) stopEventBtn.addEventListener('click', stopGlobalEvent);
-    
-    // Кнопка экономики
-    //const applyEconomyBtn = document.getElementById('applyEconomyBtn');
-    //if (applyEconomyBtn) {
-    //    applyEconomyBtn.addEventListener('click', async () => {
-    //        const shareReward = parseFloat(document.getElementById('shareReward')?.value || 0);
-    //        const blockReward = parseFloat(document.getElementById('blockReward')?.value || 0);
-    //        const chipsReward = parseInt(document.getElementById('chipsReward')?.value || 0);
-    //        const sellTax = parseInt(document.getElementById('sellTax')?.value || 0);
-            
-    //        try {
-    //            const res = await fetch(`${API_URL}/api/admin/economy`, {
-    //                method: 'POST',
-    //                headers: {
-     //                   'Content-Type': 'application/json',
-    //                    'Authorization': `Bearer ${adminToken}`
-    //                },
-    //                body: JSON.stringify({ shareReward, blockReward, chipsReward, sellTax })
-    //            });
-    //            const data = await res.json();
-    //            if (data.success) {
-    //                addLog(`💰 Экономика обновлена`, 'success');
-    //                showToast(`💾 Экономика обновлена`);
-    //            } else {
-    //                addLog(`❌ Ошибка: ${data.error}`, 'error');
-    //            }
-    //       } catch (err) {
-    //            addLog(`❌ Ошибка: ${err.message}`, 'error');
-    //        }
-    //    });
-    //}
-    
-    // Балансировка
-    const applyBalanceBtn = document.getElementById('applyBalanceBtn');
-    if (applyBalanceBtn) {
-        applyBalanceBtn.addEventListener('click', () => {
-            addLog(`⚖️ Балансировка применена`, 'success');
-            showToast(`⚙️ Балансировка обновлена`);
-        });
-    }
-    
-    // Бэкапы
-    const backupBtn = document.getElementById('backupBtn');
-    if (backupBtn) backupBtn.addEventListener('click', createBackup);
-    
-    const restoreBtn = document.getElementById('restoreBtn');
-    if (restoreBtn) restoreBtn.addEventListener('click', restoreBackup);
-    
-    const resetGameBtn = document.getElementById('resetGameBtn');
-    if (resetGameBtn) resetGameBtn.addEventListener('click', resetGame);
-    
-    // Логи
-    const clearLogsBtn = document.getElementById('clearLogsBtn');
-    if (clearLogsBtn) {
-        clearLogsBtn.addEventListener('click', () => {
-            const container = document.getElementById('logContainer');
-            if (container) container.innerHTML = '';
-            addLog(`Логи очищены`, 'info');
-        });
-    }
-    
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) refreshBtn.addEventListener('click', () => {
-        loadPlayersFromServer();
-        addLog(`🔄 Данные обновлены`, 'success');
-    });
-    
-    // Поиск
-    const searchBtn = document.getElementById('searchBtn');
-    if (searchBtn) searchBtn.addEventListener('click', searchPlayers);
-    
-    const saveEditBtn = document.getElementById('saveEditBtn');
-    if (saveEditBtn) saveEditBtn.addEventListener('click', saveEdit);
-    
-    // Чат
-    const sendChatBtn = document.getElementById('sendChatBtn');
-    if (sendChatBtn) sendChatBtn.addEventListener('click', sendAdminMessage);
-    
-    const chatInput = document.getElementById('chatInput');
-    if (chatInput) {
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendAdminMessage();
-        });
-    }
-    
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') searchPlayers();
-        });
-    }
-}
-        
-        document.getElementById('startEventBtn')?.addEventListener('click', startGlobalEvent);
-        document.getElementById('stopEventBtn')?.addEventListener('click', stopGlobalEvent);
-        
-        // ОБРАБОТЧИК ЭКОНОМИКИ С ОТЛАДКОЙ
-        document.getElementById('applyEconomyBtn')?.addEventListener('click', async () => {
-            console.log('🔧 ===== НАЧАЛО ОТПРАВКИ ЭКОНОМИКИ =====');
-            console.log('🔧 Кнопка нажата');
-            console.log('🔧 adminToken существует?', !!adminToken);
-            console.log('🔧 adminToken:', adminToken ? `${adminToken.substring(0, 20)}...` : 'ОТСУТСТВУЕТ');
-            
-            const shareReward = parseFloat(document.getElementById('shareReward')?.value || 0);
-            const blockReward = parseFloat(document.getElementById('blockReward')?.value || 0);
-            const chipsReward = parseInt(document.getElementById('chipsReward')?.value || 0);
-            const sellTax = parseInt(document.getElementById('sellTax')?.value || 0);
-            
-            console.log('🔧 Данные для отправки:', { shareReward, blockReward, chipsReward, sellTax });
-            
-            try {
-                const res = await fetch(`${API_URL}/api/admin/economy`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${adminToken}`
-                    },
-                    body: JSON.stringify({ shareReward, blockReward, chipsReward, sellTax })
-                });
-                
-                console.log('🔧 Статус ответа:', res.status);
-                const data = await res.json();
-                console.log('🔧 Ответ сервера:', data);
-                
-                if (data.success) {
-                    addLog(`💰 Настройки экономики применены: шара=${shareReward} SOL, блок=${blockReward} SOL, чипы=${chipsReward}, налог=${sellTax}%`, 'success');
-                    showToast(`💾 Экономика обновлена`);
-                } else {
-                    addLog(`❌ Ошибка: ${data.error}`, 'error');
-                    showToast(`❌ Ошибка обновления экономики`);
+    // ========== ИНИЦИАЛИЗАЦИЯ ==========
+    function bindEvents() {
+        const sendMsgBtn = document.getElementById('sendMsgBtn');
+        if (sendMsgBtn) {
+            sendMsgBtn.addEventListener('click', () => {
+                const msg = document.getElementById('sysMsg')?.value.trim();
+                if (msg) {
+                    addLog(`📡 ГЛОБАЛЬНОЕ СООБЩЕНИЕ: "${msg}"`, 'success');
+                    showToast(`📡 Сообщение отправлено`);
+                    const sysMsg = document.getElementById('sysMsg');
+                    if (sysMsg) sysMsg.value = '';
                 }
-            } catch (err) {
-                console.error('❌ Ошибка:', err);
-                addLog(`❌ Ошибка: ${err.message}`, 'error');
-                showToast(`❌ Ошибка соединения`);
-            }
-            console.log('🔧 ===== КОНЕЦ ОТПРАВКИ =====');
-        });
+            });
+        }
         
-        document.getElementById('applyBalanceBtn')?.addEventListener('click', () => {
-            addLog(`⚖️ Балансировка применена`, 'success');
-            showToast(`⚙️ Балансировка обновлена`);
-        });
+        const clearChatBtn = document.getElementById('clearChatBtn');
+        if (clearChatBtn) {
+            clearChatBtn.onclick = function() {
+                console.log('🔘 Кнопка очистки чата нажата');
+                if (confirm('Очистить чат у ВСЕХ игроков?')) {
+                    if (window.adminSocket && window.adminSocket.connected) {
+                        window.adminSocket.emit('clear_chat_for_all');
+                        addLog('🧹 Отправлена команда очистки чата для всех игроков', 'warning');
+                        showToast('✅ Команда отправлена');
+                    } else {
+                        addLog('❌ Сокет не подключён', 'error');
+                        showToast('❌ Нет соединения с сервером');
+                    }
+                }
+            };
+        }
         
-        document.getElementById('backupBtn')?.addEventListener('click', createBackup);
-        document.getElementById('restoreBtn')?.addEventListener('click', restoreBackup);
-        document.getElementById('resetGameBtn')?.addEventListener('click', resetGame);
-        document.getElementById('clearLogsBtn')?.addEventListener('click', () => {
-            const container = document.getElementById('logContainer');
-            if (container) container.innerHTML = '';
-            addLog(`Логи очищены`, 'info');
-        });
-        document.getElementById('refreshBtn')?.addEventListener('click', () => {
+        const startEventBtn = document.getElementById('startEventBtn');
+        if (startEventBtn) startEventBtn.addEventListener('click', startGlobalEvent);
+        
+        const stopEventBtn = document.getElementById('stopEventBtn');
+        if (stopEventBtn) stopEventBtn.addEventListener('click', stopGlobalEvent);
+        
+        const backupBtn = document.getElementById('backupBtn');
+        if (backupBtn) backupBtn.addEventListener('click', createBackup);
+        
+        const restoreBtn = document.getElementById('restoreBtn');
+        if (restoreBtn) restoreBtn.addEventListener('click', restoreBackup);
+        
+        const resetGameBtn = document.getElementById('resetGameBtn');
+        if (resetGameBtn) resetGameBtn.addEventListener('click', resetGame);
+        
+        const clearLogsBtn = document.getElementById('clearLogsBtn');
+        if (clearLogsBtn) {
+            clearLogsBtn.addEventListener('click', () => {
+                const container = document.getElementById('logContainer');
+                if (container) container.innerHTML = '';
+                addLog(`Логи очищены`, 'info');
+            });
+        }
+        
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) refreshBtn.addEventListener('click', () => {
             loadPlayersFromServer();
             addLog(`🔄 Данные обновлены`, 'success');
         });
-        document.getElementById('searchBtn')?.addEventListener('click', searchPlayers);
-        document.getElementById('saveEditBtn')?.addEventListener('click', saveEdit);
-        document.getElementById('sendChatBtn')?.addEventListener('click', sendAdminMessage);
-        document.getElementById('chatInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendAdminMessage(); });
-        document.getElementById('searchInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchPlayers(); });
-    
+        
+        const searchBtn = document.getElementById('searchBtn');
+        if (searchBtn) searchBtn.addEventListener('click', searchPlayers);
+        
+        const saveEditBtn = document.getElementById('saveEditBtn');
+        if (saveEditBtn) saveEditBtn.addEventListener('click', saveEdit);
+        
+        const sendChatBtn = document.getElementById('sendChatBtn');
+        if (sendChatBtn) sendChatBtn.addEventListener('click', sendAdminMessage);
+        
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendAdminMessage();
+            });
+        }
+        
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchPlayers();
+            });
+        }
+    }
+        
+    document.getElementById('startEventBtn')?.addEventListener('click', startGlobalEvent);
+    document.getElementById('stopEventBtn')?.addEventListener('click', stopGlobalEvent);
+        
+    document.getElementById('applyEconomyBtn')?.addEventListener('click', async () => {
+        console.log('🔧 ===== НАЧАЛО ОТПРАВКИ ЭКОНОМИКИ =====');
+        console.log('🔧 Кнопка нажата');
+        console.log('🔧 adminToken существует?', !!adminToken);
+        console.log('🔧 adminToken:', adminToken ? `${adminToken.substring(0, 20)}...` : 'ОТСУТСТВУЕТ');
+        
+        const shareReward = parseFloat(document.getElementById('shareReward')?.value || 0);
+        const blockReward = parseFloat(document.getElementById('blockReward')?.value || 0);
+        const chipsReward = parseInt(document.getElementById('chipsReward')?.value || 0);
+        const sellTax = parseInt(document.getElementById('sellTax')?.value || 0);
+        
+        console.log('🔧 Данные для отправки:', { shareReward, blockReward, chipsReward, sellTax });
+        
+        try {
+            const res = await fetch(`${API_URL}/api/admin/economy`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${adminToken}`
+                },
+                body: JSON.stringify({ shareReward, blockReward, chipsReward, sellTax })
+            });
+            
+            console.log('🔧 Статус ответа:', res.status);
+            const data = await res.json();
+            console.log('🔧 Ответ сервера:', data);
+            
+            if (data.success) {
+                addLog(`💰 Настройки экономики применены: шара=${shareReward} SOL, блок=${blockReward} SOL, чипы=${chipsReward}, налог=${sellTax}%`, 'success');
+                showToast(`💾 Экономика обновлена`);
+            } else {
+                addLog(`❌ Ошибка: ${data.error}`, 'error');
+                showToast(`❌ Ошибка обновления экономики`);
+            }
+        } catch (err) {
+            console.error('❌ Ошибка:', err);
+            addLog(`❌ Ошибка: ${err.message}`, 'error');
+            showToast(`❌ Ошибка соединения`);
+        }
+        console.log('🔧 ===== КОНЕЦ ОТПРАВКИ =====');
+    });
+        
+    // ОБРАБОТЧИК КНОПКИ СОХРАНЕНИЯ БАЛАНСИРОВКИ
+    document.getElementById('saveBalanceBtn')?.addEventListener('click', async () => {
+        console.log('🔧 ===== НАЧАЛО ОТПРАВКИ БАЛАНСИРОВКИ =====');
+        
+        const balanceData = {
+            poolBonus: parseInt(document.getElementById('poolBonus').value),
+            energyCost: parseInt(document.getElementById('energyCost').value),
+            overheatDmg: parseInt(document.getElementById('overheatDmg').value),
+            voltagePen: parseInt(document.getElementById('voltagePen').value),
+            pvpChance: parseInt(document.getElementById('pvpChance').value),
+            pvpFailPen: parseInt(document.getElementById('pvpFailPen').value),
+            stickFailPen: parseInt(document.getElementById('stickFailPen').value),
+            stickWinBonus: parseFloat(document.getElementById('stickWinBonus').value)
+        };
+        
+        console.log('🔧 Данные балансировки:', balanceData);
+        
+        try {
+            const res = await fetch(`${API_URL}/api/admin/balance`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${adminToken}`
+                },
+                body: JSON.stringify(balanceData)
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                addLog(`⚖️ Настройки балансировки сохранены`, 'success');
+                showToast(`✅ Балансировка обновлена`);
+            } else {
+                addLog(`❌ Ошибка: ${data.error}`, 'error');
+                showToast(`❌ Ошибка сохранения`);
+            }
+        } catch (err) {
+            addLog(`❌ Ошибка: ${err.message}`, 'error');
+            showToast(`❌ Ошибка соединения`);
+        }
+    });
+        
+    document.getElementById('backupBtn')?.addEventListener('click', createBackup);
+    document.getElementById('restoreBtn')?.addEventListener('click', restoreBackup);
+    document.getElementById('resetGameBtn')?.addEventListener('click', resetGame);
+    document.getElementById('clearLogsBtn')?.addEventListener('click', () => {
+        const container = document.getElementById('logContainer');
+        if (container) container.innerHTML = '';
+        addLog(`Логи очищены`, 'info');
+    });
+    document.getElementById('refreshBtn')?.addEventListener('click', () => {
+        loadPlayersFromServer();
+        addLog(`🔄 Данные обновлены`, 'success');
+    });
+    document.getElementById('searchBtn')?.addEventListener('click', searchPlayers);
+    document.getElementById('saveEditBtn')?.addEventListener('click', saveEdit);
+    document.getElementById('sendChatBtn')?.addEventListener('click', sendAdminMessage);
+    document.getElementById('chatInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendAdminMessage(); });
+    document.getElementById('searchInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchPlayers(); });
 
     function loadBackupsFromStorage() {
         const saved = localStorage.getItem('admin_backups');
@@ -1678,36 +1734,36 @@ if (clearChatBtn) {
 
     // ЗАПУСК
     function init() {
-    console.log('🚀 Инициализация админ-панели...');
-    
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
-        showAdminLogin();
-        return;
+        console.log('🚀 Инициализация админ-панели...');
+        
+        const token = localStorage.getItem('admin_token');
+        if (!token) {
+            showAdminLogin();
+            return;
+        }
+        
+        adminToken = token;
+        
+        bindSliders();
+        initTabs();
+        bindEvents();
+        renderChat();
+        loadBackupsFromStorage();
+        loadCardsState();
+        initDragAndDrop();
+        loadPlayersFromServer();
+        loadEconomySettings();
+        
+        addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
+        console.log('✅ Инициализация завершена');
     }
     
-    adminToken = token;
+    setTimeout(function() {
+        loadEconomySettings();
+    }, 1000);
     
-    bindSliders();
-    initTabs();
-    bindEvents();
-    renderChat();
-    loadBackupsFromStorage();
-    loadCardsState();
-    initDragAndDrop();
-    loadPlayersFromServer();
-    loadEconomySettings();   // ← ОДИН РАЗ, ПОСЛЕ ВСЕХ ЗАГРУЗОК
-    
-    addLog(`🔧 АДМИН-ПАНЕЛЬ ЗАГРУЖЕНА`, 'success');
-    console.log('✅ Инициализация завершена');
-}
-setTimeout(function() {
-    loadEconomySettings();
-}, 1000);
     init();
-</script>
-
-</script>
+    </script>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script>
@@ -1716,7 +1772,6 @@ let sortableInstances = [];
 
 // ========== СОХРАНЕНИЕ СОСТОЯНИЯ КАРТОЧЕК ==========
 function saveCardsState() {
-    // 1. Сохраняем свёрнутость
     const collapsedState = [];
     document.querySelectorAll('.card').forEach((card) => {
         const body = card.querySelector('.card-body');
@@ -1724,7 +1779,6 @@ function saveCardsState() {
     });
     localStorage.setItem('admin_collapsed_state', JSON.stringify(collapsedState));
     
-    // 2. Сохраняем порядок и расположение по колонкам
     const layout = {
         left: [],
         centerLeft: [],
@@ -1732,13 +1786,11 @@ function saveCardsState() {
         right: []
     };
     
-    // Левая колонка
     document.querySelectorAll('.col-left > .card').forEach(card => {
         const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
         layout.left.push(title);
     });
     
-    // Центр-левая колонка (.col-center их две — берем первую)
     const centerCols = document.querySelectorAll('.col-center');
     if (centerCols[0]) {
         centerCols[0].querySelectorAll('.card').forEach(card => {
@@ -1747,7 +1799,6 @@ function saveCardsState() {
         });
     }
     
-    // Центр-правая колонка (вторая .col-center)
     if (centerCols[1]) {
         centerCols[1].querySelectorAll('.card').forEach(card => {
             const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
@@ -1755,7 +1806,6 @@ function saveCardsState() {
         });
     }
     
-    // Правая колонка
     document.querySelectorAll('.col-right > .card').forEach(card => {
         const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
         layout.right.push(title);
@@ -1765,9 +1815,7 @@ function saveCardsState() {
     console.log('💾 Раскладка сохранена', layout);
 }
 
-// ========== ЗАГРУЗКА СОСТОЯНИЯ ==========
 function loadCardsState() {
-    // 1. Загружаем свёрнутость
     const collapsedState = localStorage.getItem('admin_collapsed_state');
     if (collapsedState) {
         const states = JSON.parse(collapsedState);
@@ -1782,7 +1830,6 @@ function loadCardsState() {
             }
         });
     }
-    
     console.log('📦 Состояние загружено');
 }
 
@@ -1790,23 +1837,18 @@ function loadLayout() {
     const saved = localStorage.getItem('admin_layout');
     if (!saved) return;
     console.log('📦 Загружаем раскладку');
-    // Функция пока просто заглушка, чтобы не ломать код
 }
 
-// ========== ОБНОВЛЕНИЕ ФУНКЦИИ TOGGLECARD ==========
 const originalToggleCard = window.toggleCard;
 window.toggleCard = function(header) {
     if (originalToggleCard) originalToggleCard(header);
     saveCardsState();
 };
 
-// ========== ИНИЦИАЛИЗАЦИЯ ПЕРЕТАСКИВАНИЯ ==========
 function initDragAndDrop() {
-    // Удаляем старые инстансы
     sortableInstances.forEach(instance => instance.destroy());
     sortableInstances = [];
     
-    // Находим все колонки
     const columns = [
         document.querySelector('.col-left'),
         ...document.querySelectorAll('.col-center'),
@@ -1833,7 +1875,6 @@ function initDragAndDrop() {
     console.log('🔄 Drag & Drop инициализирован');
 }
 
-// ========== ВОССТАНОВЛЕНИЕ РАСКЛАДКИ ПРИ ЗАГРУЗКЕ ==========
 function restoreLayout() {
     const saved = localStorage.getItem('admin_layout');
     if (!saved) {
@@ -1844,27 +1885,23 @@ function restoreLayout() {
     const layout = JSON.parse(saved);
     console.log('📦 Восстанавливаем раскладку...', layout);
     
-    // Получаем все карточки
     const allCards = {};
     document.querySelectorAll('.card').forEach(card => {
         const title = card.querySelector('.card-header h3')?.innerText || 'unknown';
         allCards[title] = card;
     });
     
-    // Функция перемещения карточки
     function moveCard(card, targetColumn) {
         if (!card || !targetColumn) return;
         if (card.parentElement === targetColumn) return;
         targetColumn.appendChild(card);
     }
     
-    // Восстанавливаем левую колонку
     const leftCol = document.querySelector('.col-left');
     layout.left.forEach(title => {
         if (allCards[title]) moveCard(allCards[title], leftCol);
     });
     
-    // Восстанавливаем центральные колонки
     const centerCols = document.querySelectorAll('.col-center');
     if (centerCols[0]) {
         layout.centerLeft.forEach(title => {
@@ -1877,32 +1914,23 @@ function restoreLayout() {
         });
     }
     
-    // Восстанавливаем правую колонку
     const rightCol = document.querySelector('.col-right');
     layout.right.forEach(title => {
         if (allCards[title]) moveCard(allCards[title], rightCol);
     });
     
-    // Переинициализируем Drag & Drop после перемещения
     setTimeout(() => {
         initDragAndDrop();
         console.log('✅ Раскладка восстановлена');
     }, 100);
 }
 
-// ========== ЗАПУСК ==========
 window.addEventListener('DOMContentLoaded', () => {
-    // Восстанавливаем раскладку
     restoreLayout();
-    
-    // Загружаем свёрнутость
     setTimeout(loadCardsState, 150);
-    
-    // Инициализируем Drag & Drop
     initDragAndDrop();
 });
 
-// Стили
 const style = document.createElement('style');
 style.textContent = `
     .sortable-ghost {
@@ -1938,3 +1966,4 @@ document.head.appendChild(style);
 </script>
 </body>
 </html>
+

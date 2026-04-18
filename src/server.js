@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: __dirname + '/.env' });
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
@@ -51,6 +51,18 @@ global.economySettings = {
     sellTax: 30,
     updatedAt: new Date()
 };
+// Настройки балансировки (PvP, перегрев, штрафы и т.д.)
+global.balanceSettings = {
+    poolBonus: 15,
+    energyCost: 1,
+    overheatDmg: 3,
+    voltagePen: 15,
+    pvpChance: 35,
+    pvpFailPen: 15,
+    stickFailPen: 15,
+    stickWinBonus: 0.000001,
+    updatedAt: new Date()
+};
 
 app.use(cors());
 app.use(express.json());
@@ -64,7 +76,6 @@ const server = http.createServer(app);
 const io = socketIo(server, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
 });
-
 // ========== ОБРАБОТЧИКИ SOCKET.IO ==========
 io.on('connection', (socket) => {
     console.log('🔌 Пользователь подключился:', socket.id);
@@ -72,36 +83,34 @@ io.on('connection', (socket) => {
     let lastAdminMessages = new Map();
 
     // ========== ОЧИСТКА ЧАТА ДЛЯ ВСЕХ (АДМИН) ==========
-socket.on('clear_chat_for_all', (data) => {
-    console.log('📡 ПОЛУЧЕНО clear_chat_for_all от:', socket.id);
-    
-    const token = socket.handshake.auth.token;
-    if (!token) {
-        console.log('❌ Нет токена');
-        return;
-    }
-    
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (decoded.role !== 'admin') {
-            console.log('❌ Не админ, роль:', decoded.role);
+    socket.on('clear_chat_for_all', (data) => {
+        console.log('📡 ПОЛУЧЕНО clear_chat_for_all от:', socket.id);
+        
+        const token = socket.handshake.auth.token;
+        if (!token) {
+            console.log('❌ Нет токена');
             return;
         }
         
-        // Очищаем историю
-        chatHistory = [];
-        fs.writeFileSync(HISTORY_FILE, JSON.stringify([], null, 2));
-        
-        // Отправляем событие очистки + принудительную перезагрузку
-        io.emit('chat_cleared_by_admin');
-        io.emit('force_reload');
-        
-        console.log('🧹 Чат очищен, игроки будут перезагружены');
-        
-    } catch (err) {
-        console.log('❌ Ошибка токена:', err.message);
-    }
-});
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (decoded.role !== 'admin') {
+                console.log('❌ Не админ, роль:', decoded.role);
+                return;
+            }
+            
+            chatHistory = [];
+            fs.writeFileSync(HISTORY_FILE, JSON.stringify([], null, 2));
+            
+            io.emit('chat_cleared_by_admin');
+            io.emit('force_reload');
+            
+            console.log('🧹 Чат очищен, игроки будут перезагружены');
+            
+        } catch (err) {
+            console.log('❌ Ошибка токена:', err.message);
+        }
+    });
     
     // ========== АДМИН-ЧАТ ==========
     socket.on('admin_message', (data) => {
@@ -133,8 +142,7 @@ socket.on('clear_chat_for_all', (data) => {
     socket.on('request_history', () => {
         socket.emit('chat_history', chatHistory);
     });
-    
-    // ========== ОНЛАЙН-ПОЛЬЗОВАТЕЛИ ==========
+        // ========== ОНЛАЙН-ПОЛЬЗОВАТЕЛИ ==========
     socket.on('user_online', (username) => {
         socket.username = username;
         console.log('👤 Пользователь в сети:', username);
@@ -166,7 +174,6 @@ socket.on('clear_chat_for_all', (data) => {
         io.emit('online_users', onlineUsers);
     });
 });
-
 // ========== API МАРШРУТЫ ==========
 
 // Регистрация
@@ -286,7 +293,6 @@ app.post('/api/auth/admin/login', async (req, res) => {
     
     res.status(401).json({ error: 'Неверные данные' });
 });
-
 // Админ маршруты
 app.get('/api/admin/players', isAdmin, async (req, res) => {
     try {
@@ -398,6 +404,55 @@ app.get('/api/admin/economy', async (req, res) => {
         sellTax: 30
     }});
 });
+// ========== МАРШРУТЫ БАЛАНСИРОВКИ ==========
+
+// GET — получить текущие настройки балансировки
+app.get('/api/admin/balance', isAdmin, async (req, res) => {
+    try {
+        res.json({ success: true, settings: global.balanceSettings });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST — сохранить настройки балансировки
+app.post('/api/admin/balance', isAdmin, async (req, res) => {
+    try {
+        const {
+            poolBonus,
+            energyCost,
+            overheatDmg,
+            voltagePen,
+            pvpChance,
+            pvpFailPen,
+            stickFailPen,
+            stickWinBonus
+        } = req.body;
+        
+        global.balanceSettings = {
+            poolBonus: poolBonus !== undefined ? poolBonus : global.balanceSettings.poolBonus,
+            energyCost: energyCost !== undefined ? energyCost : global.balanceSettings.energyCost,
+            overheatDmg: overheatDmg !== undefined ? overheatDmg : global.balanceSettings.overheatDmg,
+            voltagePen: voltagePen !== undefined ? voltagePen : global.balanceSettings.voltagePen,
+            pvpChance: pvpChance !== undefined ? pvpChance : global.balanceSettings.pvpChance,
+            pvpFailPen: pvpFailPen !== undefined ? pvpFailPen : global.balanceSettings.pvpFailPen,
+            stickFailPen: stickFailPen !== undefined ? stickFailPen : global.balanceSettings.stickFailPen,
+            stickWinBonus: stickWinBonus !== undefined ? stickWinBonus : global.balanceSettings.stickWinBonus,
+            updatedAt: new Date()
+        };
+        
+        // ОТПРАВИТЬ ВСЕМ ИГРОКАМ
+        io.emit('balance_update', global.balanceSettings);
+        
+        console.log('⚖️ Балансировка обновлена:', global.balanceSettings);
+        res.json({ success: true, settings: global.balanceSettings });
+        
+    } catch (err) {
+        console.error('❌ Ошибка сохранения балансировки:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+// ========== ИГРОВЫЕ МАРШРУТЫ ==========
 
 // Auth middleware для игроков
 const auth = (req, res, next) => {
@@ -532,7 +587,8 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
 
 // ========== ЗАПУСК ==========
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {  // ← '0.0.0.0' важно для Render
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Сервер запущен на порту ${PORT}`);
     console.log('🔌 Socket.IO чат активен');
+    console.log('⚖️ Балансировка загружена:', global.balanceSettings);
 });
