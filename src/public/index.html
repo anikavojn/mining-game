@@ -6086,5 +6086,57 @@ setTimeout(() => {
     loadGameFromServer();
 }, 1000);
 </script>
+<script>
+// ========== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ИМЕНИ ==========
+(function forceUpdateName() {
+    const token = localStorage.getItem('mining_token');
+    if (!token) return;
+    
+    fetch('/api/game/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.user && data.user.username) {
+            // Обновляем спан
+            const nameSpan = document.getElementById('profileUsername');
+            if (nameSpan) {
+                nameSpan.innerText = data.user.username;
+                console.log('✅ Имя обновлено:', data.user.username);
+            }
+            
+            // Обновляем всю кнопку
+            const profileBtn = document.getElementById('profileBtn');
+            if (profileBtn) {
+                profileBtn.innerHTML = `<span></span> <span id="profileUsername">${data.user.username}</span> <span>▼</span>`;
+            }
+            
+            // Сохраняем в объект player
+            if (window.player) {
+                window.player.username = data.user.username;
+            }
+        }
+    })
+    .catch(err => console.error('Ошибка загрузки имени:', err));
+})();
 
+// Также пробуем обновить после загрузки DOM
+document.addEventListener('DOMContentLoaded', function() {
+    const token = localStorage.getItem('mining_token');
+    if (!token) return;
+    
+    fetch('/api/game/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.user && data.user.username) {
+            const nameSpan = document.getElementById('profileUsername');
+            if (nameSpan && nameSpan.innerText === 'Информация') {
+                nameSpan.innerText = data.user.username;
+            }
+        }
+    });
+});
+</script>
 </html>
