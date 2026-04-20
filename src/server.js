@@ -79,6 +79,10 @@ const io = socketIo(server, {
 // ========== ОБРАБОТЧИКИ SOCKET.IO ==========
 io.on('connection', (socket) => {
     console.log('🔌 Пользователь подключился:', socket.id);
+
+    // ========== ДОБАВЬТЕ ЭТУ СТРОКУ ==========
+    socket.emit('economy_update', global.balanceSettings);
+    // =========================================
     
     let lastAdminMessages = new Map();
 
@@ -442,7 +446,7 @@ app.post('/api/admin/balance', isAdmin, async (req, res) => {
         };
         
         // ОТПРАВИТЬ ВСЕМ ИГРОКАМ
-        io.emit('balance_update', global.balanceSettings);
+        io.emit('economy_update', global.balanceSettings);
         
         console.log('⚖️ Балансировка обновлена:', global.balanceSettings);
         res.json({ success: true, settings: global.balanceSettings });

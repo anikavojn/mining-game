@@ -922,8 +922,8 @@ function checkStickTask() {
         let stickPadEl = document.getElementById('stickPad');
         
         if (isEven) {
-            let reward = 0.00000001
-            let chipsReward = 1
+            let reward = window.gameBalance?.stickWinBonus ?? 0.00000001;
+let chipsReward = 1;  // можно позже добавить в настройки
             
             player.balance += reward;
             player.chips += chipsReward;
@@ -943,7 +943,8 @@ function checkStickTask() {
             playSuccess();
         } else {
             let penalties = [];
-            let damage = 5 + Math.floor(Math.random() * 15);
+            let stickFailPen = window.gameBalance?.stickFailPen ?? 15;
+let damage = Math.floor(stickFailPen / 3) + Math.floor(Math.random() * (stickFailPen / 2));
             player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
             penalties.push(`💔 Оборудование повреждено на ${damage}%`);
             
@@ -952,11 +953,11 @@ function checkStickTask() {
             penalties.push(`⚡ Напряжение подскочило до ${player.voltage.toFixed(1)}V`);
             updateVoltage();
             
-            let chipsLoss = 2 + Math.floor(Math.random() * 7);
+            let chipsLoss = Math.floor(stickFailPen / 5) + Math.floor(Math.random() * (stickFailPen / 3));
             player.chips = Math.max(0, player.chips - chipsLoss);
             penalties.push(`🔧 Потеряно ${chipsLoss} чипов`);
             
-            let hashPenalty = 5 + Math.floor(Math.random() * 11);
+            let hashPenalty = Math.floor(stickFailPen / 2) + Math.floor(Math.random() * (stickFailPen / 2));
             let originalHashBuff = player.buffs.hash;
             player.buffs.hash = player.buffs.hash * (1 - hashPenalty / 100);
             penalties.push(`📉 Хешрейт снижен на ${hashPenalty}% на 2 минуты`);
@@ -1712,6 +1713,130 @@ function addLog(msg, type = 'info') {
                 logList.innerHTML = html || '<div>Нет событий</div>';
             }
         }
+
+// ========== СОХРАНЕНИЕ И ЗАГРУЗКА ПРОГРЕССА НА СЕРВЕР ==========
+
+// Загрузка прогресса с сервера
+async function loadGameFromServer() {
+    const token = localStorage.getItem('mining_token');
+    if (!token) {
+        console.log('❌ Нет токена, загрузка с сервера невозможна');
+        return false;
+    }
+    
+    try {
+        const response = await fetch('/api/game/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.user) {
+            console.log('📥 Загружаем прогресс с сервера:', data.user);
+            
+            // Загружаем основные данные
+            player.balance = parseFloat(data.user.balance) || 0;
+            player.chips = data.user.chips || 0;
+            player.basePower = data.user.base_power || 2;
+            player.energy = data.user.energy || 100;
+            player.maxEnergy = data.user.max_energy || 100;
+            
+            // Загружаем инвентарь
+            if (data.user.inv) {
+                player.inv = data.user.inv;
+            }
+            
+            // Загружаем статистику
+            player.totalShares = data.user.total_shares || 0;
+            player.totalBlocks = data.user.total_blocks || 0;
+            player.totalEarned = parseFloat(data.user.total_earned) || 0;
+            player.miningEarned = parseFloat(data.user.mining_earned) || 0;
+            
+            // Загружаем повреждения и пыль
+            player.equipmentDamage = data.user.equipment_damage || 0;
+            player.dust = data.user.dust || 0;
+            player.solar = data.user.solar || 0;
+            player.powerBank = data.user.power_bank || 0;
+            
+            // Загружаем исследования
+            if (data.user.research) {
+                player.research = data.user.research;
+            }
+            
+            // Обновляем интерфейс
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderRigs === 'function') renderRigs();
+            if (typeof recalc === 'function') recalc();
+            if (typeof updateWiringDisplay === 'function') updateWiringDisplay();
+            
+            console.log('✅ Прогресс загружен с сервера!');
+            console.log(`💰 Баланс: ${player.balance.toFixed(8)} SOL`);
+            console.log(`🔧 Чипы: ${player.chips}`);
+            console.log(`💪 Мощность: ${player.basePower} TH/s`);
+            
+            return true;
+        } else {
+            console.log('⚠️ На сервере нет сохранений, используем локальные данные');
+            return false;
+        }
+    } catch (err) {
+        console.error('❌ Ошибка загрузки прогресса:', err);
+        return false;
+    }
+}
+
+// Сохранение прогресса на сервер
+async function saveGameToServer() {
+    const token = localStorage.getItem('mining_token');
+    if (!token) return false;
+    
+    // Обновляем активное время игры
+    if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        window.gameActiveTime += now - window.lastActiveCheck;
+        window.lastActiveCheck = now;
+    }
+    
+    try {
+        const response = await fetch('/api/game/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                balance: player.balance,
+                chips: player.chips,
+                energy: player.energy,
+                basePower: player.basePower,
+                shares: player.shares,
+                blocks: player.blocks,
+                totalShares: player.totalShares,
+                totalBlocks: player.totalBlocks,
+                totalEarned: player.totalEarned,
+                miningEarned: player.miningEarned,
+                equipmentDamage: player.equipmentDamage,
+                inv: player.inv,
+                research: player.research,
+                dust: player.dust,
+                solar: player.solar,
+                powerBank: player.powerBank
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            console.log('💾 Прогресс сохранён на сервер');
+            return true;
+        } else {
+            console.error('❌ Ошибка сохранения:', data.error);
+            return false;
+        }
+    } catch (err) {
+        console.error('❌ Ошибка сохранения:', err);
+        return false;
+    }
+}
+
     });
     
     // ОБНОВЛЯЕМ ТЕРМИНАЛ
@@ -1798,8 +1923,8 @@ function fixWiringPort(index) {
         toast(`🔌 Порт ${['CPU','GPU','RAM','PSU','COOL','NET'][index]} уже исправен`);
         return;
     }
-    let cost = 0.00000001;
-    let chipCost = 2;
+    let cost = window.gameBalance?.repairCost ?? 0.00000001;
+let chipCost = window.gameBalance?.repairChips ?? 2;
     if (player.balance >= cost && player.chips >= chipCost) {
         player.balance -= cost;
         player.chips -= chipCost;
@@ -1834,14 +1959,12 @@ let lastPvpAttack = 0;
 const PVP_COOLDOWN = 3600000; // 1 час
 
 function steal(target) {
-    // Проверка на выключенный майнинг
     if (!player.mining) {
         toast(`⛔ Майнинг выключен! Включи MINER, чтобы атаковать.`);
         playFail();
         return;
     }
     
-    // Проверка кулдауна
     let now = Date.now();
     if (now - lastPvpAttack < PVP_COOLDOWN) {
         let remaining = Math.ceil((PVP_COOLDOWN - (now - lastPvpAttack)) / 1000);
@@ -1852,12 +1975,14 @@ function steal(target) {
         return;
     }
     
-    // Обновляем время последней атаки
     lastPvpAttack = now;
     
-    let chance = Math.max(10, Math.min(80, 30 + player.hashPower / 200 - target.def / 2));
+    // ИСПРАВЛЕНО: используем настройки от админа
+    let baseChance = window.gameBalance?.pvpChance ?? 35;
+// Убираем ограничение 80%, оставляем только минимум 0% и максимум 100%
+let chance = Math.max(0, Math.min(100, baseChance + player.hashPower / 200 - target.def / 2));
     let succ = Math.random() * 100 < chance;
-    let stealPct = 0.05 + Math.random() * 0.1;
+    let stealPct = (window.gameBalance?.pvpFailPen ?? 15) / 100;
     
     if (succ) {
         let stolen = Math.floor(target.pw * stealPct);
@@ -1875,7 +2000,7 @@ function steal(target) {
         playSuccess();
         toast(`✅ +${stolen} TH/s!`);
     } else {
-        let penalty = 0.1 + Math.random() * 0.15;
+        let penalty = (window.gameBalance?.pvpFailPen ?? 15) / 100;
         let lostPower = Math.floor(player.basePower * penalty);
         let oldPower = player.basePower;
         let actualLost = Math.max(1, lostPower);
@@ -2031,6 +2156,76 @@ function initTasks() {
         { name: "Найди шары", desc: "Найди шары", progress: 0, target: 30, unit: "шт", type: "shares" }
     ];
     taskRefreshTime = Date.now() + 1800000;
+
+// В функции init() или после загрузки профиля
+async function initGame() {
+    // Сначала загружаем профиль пользователя
+    await loadUserProfile();
+    
+    // Затем загружаем прогресс с сервера
+    await loadGameFromServer();
+    
+    // Загружаем локальный сейв (как резерв)
+    loadGame();
+    
+    // ========== НОВАЯ ИНИЦИАЛИЗАЦИЯ С СЕРВЕРНЫМ СОХРАНЕНИЕМ ==========
+async function initGame() {
+    console.log('🚀 Инициализация игры...');
+    
+    // Загружаем профиль пользователя
+    await loadUserProfile();
+    
+    // Загружаем прогресс с сервера
+    await loadGameFromServer();
+    
+    // Загружаем локальный сейв (как резерв, если на сервере пусто)
+    loadGame();
+    
+    // Инициализация всех систем
+    initTasks();
+    recalc();
+    renderRigs();
+    updateVoltage();
+    updateWeather();
+    updateCooling();
+    updateWiringDisplay();
+    startTraderSystem();
+    
+    // Запускаем интервалы
+    setInterval(updateWeather, 10000);
+    setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
+    setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
+    
+    // ========== АВТОСОХРАНЕНИЕ НА СЕРВЕР ==========
+    // Каждые 30 секунд
+    setInterval(() => {
+        saveGameToServer();
+    }, 30000);
+    
+    // При закрытии страницы
+    window.addEventListener('beforeunload', () => {
+        saveGameToServer();
+    });
+    
+    addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
+    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
+    console.log('✅ Игра инициализирована с серверным сохранением');
+}
+
+// ЗАПУСКАЕМ ИГРУ
+initGame();
+    
+    // Сохраняем при закрытии страницы
+    window.addEventListener('beforeunload', () => {
+        saveGameToServer();
+    });
+    
+    console.log('✅ Игра инициализирована с серверным сохранением');
+}
+
+// Вызываем initGame вместо старой инициализации
+initGame();
+
 }
 
 function updateTasksUI() {
@@ -2376,6 +2571,15 @@ function updateSim() {
     
     // Базовое охлаждение от слайдеров
 let coolEff = (player.cooling.fan * 0.4 + player.cooling.pump * 0.3 + player.cooling.water * 0.3) / 100;
+// Штраф за нестабильное напряжение
+let voltagePenalty = 1;
+if (player.voltage > 13.2 || player.voltage < 10.5) {
+    let penaltyPercent = window.gameBalance?.voltagePen ?? 15;
+    voltagePenalty = 1 - (penaltyPercent / 100);
+    if (Math.random() < 0.02) {
+        addLog(`⚡ Нестабильное напряжение ${player.voltage.toFixed(1)}V! Штраф -${penaltyPercent}% хешрейта`, 'warning');
+    }
+}
 
 // Дополнительное охлаждение от установленного оборудования
 let coolingGearBonus = 0;
@@ -2416,8 +2620,8 @@ coolEff = Math.min(1.0, coolEff + coolingGearBonus);
     // Все штрафы применяются ВСЕГДА, независимо от basePower
     let finalPenalty = stolenPenalty * damagePenalty * wiringPenalty * dustEff;
     
-    player.hashPower = Math.floor(player.basePower * ocBonus * player.buffs.hash * coolBonus * weatherBonus * poolBonus * finalPenalty);
-    player.hashPower = Math.max(0, player.hashPower);  // не может быть отрицательным
+    player.hashPower = Math.floor(player.basePower * ocBonus * player.buffs.hash * coolBonus * weatherBonus * poolBonus * finalPenalty * voltagePenalty);
+    player.hashPower = Math.max(0, player.hashPower);
 } else {
     player.hashPower = 0;
 }
@@ -2474,11 +2678,12 @@ coolEff = Math.min(1.0, coolEff + coolingGearBonus);
         tasks.forEach(t => { if (t.type === "voltage") t.progress++; });
     }
     
-    if (temp > 88 && player.mining) {
-        let damage = Math.floor(Math.random() * 2) + 1;
-        player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
-        addLog(`⚠️ Температура ${temp}°C! Оборудование повреждено на ${damage}%!`, 'warning');
-    }
+    if (temp > 85 && player.mining) {
+    let baseDamage = window.gameBalance?.overheatDmg ?? 3;
+    let damage = Math.floor(baseDamage + Math.random() * 5);
+    player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
+    addLog(`⚠️ Температура ${temp}°C! Перегрев: -${damage}%`, 'warning');
+}
     if (player.voltage > 13.2) addLog(`⚡ Высокое напряжение ${player.voltage.toFixed(1)}V!`, 'warning');
     
     randomWiringFault();
@@ -3495,7 +3700,78 @@ if (savedUserForChat) {
 if (!window.socket) {
     window.socket = io();
 
+    // ========== ПРИМЕНЕНИЕ НАСТРОЕК ОТ АДМИНА ==========
+function applyBalanceSettings(settings) {
+    if (!settings) return;
+    
+    console.log('🔄 Применяем настройки админа:', settings);
+    
+    window.balanceSettings = settings;
+    
+    // Награды
+    if (settings.shareReward !== undefined) window.shareReward = settings.shareReward;
+    if (settings.blockReward !== undefined) window.blockReward = settings.blockReward;
+    if (settings.chipsReward !== undefined) window.chipsPerShare = settings.chipsReward;
+    if (settings.sellTax !== undefined) window.sellTax = settings.sellTax;
+    
+    // Балансировка
+    if (settings.poolBonus !== undefined && player) {
+        player.poolBonus = settings.poolBonus;
+        if (player.inPool && typeof recalc === 'function') recalc();
+    }
+    
+    if (settings.energyCost !== undefined) {
+        window.energyCostMultiplier = settings.energyCost;
+    }
+    
+    // Сохраняем для использования в механиках
+    window.gameBalance = {
+    overheatDmg: settings.overheatDmg || 3,
+    voltagePen: settings.voltagePen || 15,
+    pvpChance: settings.pvpChance || 35,
+    pvpFailPen: settings.pvpFailPen || 15,
+    stickFailPen: settings.stickFailPen || 15,
+    stickWinBonus: settings.stickWinBonus || 0.00000001,
+    poolBonus: settings.poolBonus || 15,
+    energyCost: settings.energyCost || 1,
+    repairCost: 0.00000001,
+    repairChips: 2
+};
+    
+    
+}
+
+// Подписываемся на обновления
+if (typeof socket !== 'undefined') {
+    socket.on('economy_update', (data) => {
+        console.log('📡 Получены настройки от сервера:', data);
+        applyBalanceSettings(data);
+    });
+    
+    // Загружаем настройки при старте
+    setTimeout(() => {
+        fetch('/api/admin/balance')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) applyBalanceSettings(data.settings);
+            })
+            .catch(err => console.error('Ошибка загрузки настроек:', err));
+    }, 1000);
+}
+
     // ========== ОБРАБОТЧИКИ СОКЕТА ==========
+    // Проверяем, что игра получает обновления
+window.socket.on('economy_update', (data) => {
+    console.log('🎯🎯🎯 ИГРА ПОЛУЧИЛА ОБНОВЛЕНИЕ!', data);
+    window.economySettings = data;
+    
+    // Обновляем локальные настройки в игре
+    if (typeof window.updateBalanceSettings === 'function') {
+        window.updateBalanceSettings(data);
+    }
+    
+    
+});
     
     // Получение обновлений экономики от админа
     window.socket.on('force_reload', () => {
@@ -3611,6 +3887,9 @@ window.socket.on('economy_update', (settings) => {
         window.blockReward = reward;
         addLog(`🏆 Награда за блок: ${reward} SOL`, 'info');
     });
+
+
+    
 }
 
 function renderChat(cont, wid) {
@@ -3764,7 +4043,7 @@ function renderPool(cont) {
         if (player.balance >= 0.02) {
             player.balance -= 0.02;
             player.inPool = true;
-            player.poolBonus = 15;
+            player.poolBonus = window.gameBalance?.poolBonus ?? 15;
             addLog(`🤝 Вступили в пул! +15% хешрейта`, 'success');
             recalc();
             renderPool(cont);
@@ -5050,6 +5329,9 @@ function getEnergyCost() {
             cost += rigs[id].energyCost * cnt;
         }
     }
+    // ПРИМЕНЯЕМ МНОЖИТЕЛЬ СТОИМОСТИ ЭНЕРГИИ ОТ АДМИНА
+    let multiplier = window.gameBalance?.energyCost ?? 1;
+    cost = cost * multiplier;
     return Math.max(0.5, cost);
 }
 
