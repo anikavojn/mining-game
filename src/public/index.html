@@ -5,7 +5,7 @@
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>    
 <script>
 // Просто проверяем токен при загрузке игры
-const token = localStorage.getItem('mining_token');
+
 if (!token) {
     window.location.href = '/login.html';
 }
@@ -5658,167 +5658,6 @@ document.querySelectorAll('.dummy-btn[data-dummy="5"]').forEach(btn => {
 // 7. Инициализация при старте
 updatePowerBankUI();
 
-// ========== СОХРАНЕНИЕ И ЗАГРУЗКА ИГРЫ (ИСПРАВЛЕННАЯ ВЕРСИЯ С ИССЛЕДОВАНИЯМИ) ==========
-
-function saveGame() {
-    if (document.visibilityState === 'visible') {
-        const now = Date.now();
-        window.gameActiveTime += now - window.lastActiveCheck;
-        window.lastActiveCheck = now;
-    }
-    
-    const saveData = {
-        v: 3, // увеличил версию
-        balance: player.balance,
-        chips: player.chips,
-        energy: player.energy,
-        maxEnergy: player.maxEnergy,
-        basePower: player.basePower,
-        voltage: player.voltage,
-        mining: player.mining,
-        oc: player.oc,
-        shares: player.shares,
-        blocks: player.blocks,
-        totalShares: player.totalShares,
-        totalBlocks: player.totalBlocks,
-        totalEarned: player.totalEarned,
-        spm: player.spm,
-        totalGameTime: window.gameActiveTime,
-        totalMiningTime: player.miningTime,
-        lastSaveTimestamp: Date.now(),
-        buffs: player.buffs,
-        cooling: player.cooling,
-        defense: player.defense,
-        antivirus: player.antivirus,
-        firewall: player.firewall,
-        stolen: player.stolen,
-        solar: player.solar,
-        inPool: player.inPool,
-        poolBonus: player.poolBonus,
-        equipmentDamage: player.equipmentDamage,
-        wiringFaults: player.wiringFaults,
-        dust: player.dust,
-        lastBlow: player.lastBlow,
-        lastService: player.lastService,
-        research: player.research,
-        inv: player.inv,
-        ach: {
-            firstShare: player.ach?.firstShare || false,
-            firstBlock: player.ach?.firstBlock || false,
-            rich: player.ach?.rich || false,
-            overclocker: player.ach?.overclocker || false,
-            miner: player.ach?.miner || false
-        },
-        powerBank: player.powerBank,
-        weather: player.weather,
-        pvpBonus: player.pvpBonus,
-        miningEarned: player.miningEarned, 
-        // ========== ДОБАВЛЕНО ДЛЯ ИССЛЕДОВАНИЙ ==========
-        researchTimers: player.researchTimers || {},
-        researchCompleted: player.researchCompleted || {}
-    };
-    localStorage.setItem('miningSave', JSON.stringify(saveData));
-}
-
-function loadGame() {
-    const saved = localStorage.getItem('miningSave');
-    if (!saved) {
-        player.startTime = Date.now();
-        player.miningTime = 0;
-        window.gameActiveTime = 0;
-        window.lastActiveCheck = Date.now();
-        player.totalShares = player.totalShares || 0;
-        player.totalBlocks = player.totalBlocks || 0;
-        player.totalEarned = player.totalEarned || 0;
-        player.ach = player.ach || { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false };
-        // Инициализация исследований при первом запуске
-        player.researchTimers = {};
-        player.researchCompleted = {};
-        player.miningEarned = data.miningEarned ?? 0;
-        return false;
-    }
-    
-    try {
-        const data = JSON.parse(saved);
-        const now = Date.now();
-        
-        player.balance = data.balance ?? 0;
-        player.chips = data.chips ?? 0;
-        player.energy = data.energy ?? 100;
-        player.maxEnergy = data.maxEnergy ?? 100;
-        player.basePower = data.basePower ?? 2;
-        player.voltage = data.voltage ?? 11.8;
-        player.mining = false;
-        player.oc = data.oc ?? false;
-        player.shares = data.shares ?? 0;
-        player.blocks = data.blocks ?? 0;
-        player.totalShares = data.totalShares ?? 0;
-        player.totalBlocks = data.totalBlocks ?? 0;
-        player.totalEarned = data.totalEarned ?? 0;
-        player.spm = data.spm ?? 0;
-        player.buffs = data.buffs ?? { hash: 1, luck: 1 };
-        player.cooling = data.cooling ?? { fan: 65, pump: 50, water: 30 };
-        player.defense = data.defense ?? 30;
-        player.antivirus = data.antivirus ?? 1;
-        player.firewall = data.firewall ?? false;
-        player.stolen = data.stolen ?? 0;
-        player.solar = data.solar ?? 0;
-        player.inPool = data.inPool ?? false;
-        player.poolBonus = data.poolBonus ?? 0;
-        player.equipmentDamage = data.equipmentDamage ?? 0;
-        player.wiringFaults = data.wiringFaults ?? [false, false, false, false, false, false];
-        player.dust = data.dust ?? 0;
-        player.lastBlow = data.lastBlow ?? 0;
-        player.lastService = data.lastService ?? 0;
-        player.research = data.research ?? { gpu: false, asic: false, highEnd: false, industrial: false };
-        player.inv = data.inv ?? { "cpu_miner": 1 };
-        player.ach = data.ach ?? { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false };
-        player.powerBank = data.powerBank ?? 0;
-        player.weather = data.weather ?? { temp: 22, sun: 65, wind: 12 };
-        player.pvpBonus = data.pvpBonus ?? 0;
-        
-        // ========== ДОБАВЛЕНО ДЛЯ ИССЛЕДОВАНИЙ ==========
-        player.researchTimers = data.researchTimers || {};
-        player.researchCompleted = data.researchCompleted || {};
-        // ========== ВОССТАНОВЛЕНИЕ ЗАРАБОТКА ОТ МАЙНИНГА ==========
-        player.miningEarned = data.miningEarned ?? 0;
-        
-        window.gameActiveTime = data.totalGameTime ?? 0;
-        player.miningTime = data.totalMiningTime ?? 0;
-        
-        player.startTime = now;
-        player.lastMiningCheck = now;
-        window.lastActiveCheck = now;
-        
-        const minerCheckbox = document.getElementById('minerMain');
-        if (minerCheckbox) minerCheckbox.checked = false;
-        
-        const ocCheckbox = document.getElementById('overclock');
-        if (ocCheckbox) ocCheckbox.checked = player.oc;
-        
-        if (player.cooling) {
-            const fanSlider = document.getElementById('coolFanSlider');
-            const pumpSlider = document.getElementById('coolPumpSlider');
-            const waterSlider = document.getElementById('coolWaterSlider');
-            if (fanSlider) fanSlider.value = player.cooling.fan;
-            if (pumpSlider) pumpSlider.value = player.cooling.pump;
-            if (waterSlider) waterSlider.value = player.cooling.water;
-            if (typeof updateCooling === 'function') updateCooling();
-        }
-        
-        if (typeof recalc === 'function') recalc();
-        if (typeof renderRigs === 'function') renderRigs();
-        if (typeof updateUI === 'function') updateUI();
-        if (typeof updateVoltage === 'function') updateVoltage();
-        if (typeof updateWiringDisplay === 'function') updateWiringDisplay();
-        
-        return true;
-    } catch(e) {
-        console.error('Ошибка загрузки:', e);
-        return false;
-    }
-}
-
 // Автосохранение
 setInterval(() => { saveGame(); }, 3000);
 window.addEventListener('beforeunload', () => { saveGame(); });
@@ -6091,37 +5930,145 @@ function showWithdrawWindow() {
 </body>
 
 <script>
-// ПРОСТОЕ РЕШЕНИЕ - РАБОТАЕТ
-setTimeout(function() {
-    const token = localStorage.getItem('mining_token');
+// ========== СОХРАНЕНИЕ НА СЕРВЕРЕ (РАБОТАЕТ) ==========
+
+const token = localStorage.getItem('mining_token');
+
+async function saveGameToServer() {
     if (!token) return;
     
-    fetch('/api/game/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success && data.user.username) {
-            // Обновляем имя
-            const nameSpan = document.getElementById('profileUsername');
-            if (nameSpan) nameSpan.innerText = data.user.username;
+    const saveData = {
+        balance: player.balance,
+        chips: player.chips,
+        energy: player.energy,
+        maxEnergy: player.maxEnergy,
+        basePower: player.basePower,
+        voltage: player.voltage,
+        mining: player.mining,
+        oc: player.oc,
+        shares: player.shares,
+        blocks: player.blocks,
+        totalShares: player.totalShares,
+        totalBlocks: player.totalBlocks,
+        totalEarned: player.totalEarned,
+        spm: player.spm,
+        totalGameTime: window.gameActiveTime,
+        totalMiningTime: player.miningTime,
+        buffs: player.buffs,
+        cooling: player.cooling,
+        defense: player.defense,
+        antivirus: player.antivirus,
+        firewall: player.firewall,
+        stolen: player.stolen,
+        solar: player.solar,
+        inPool: player.inPool,
+        poolBonus: player.poolBonus,
+        equipmentDamage: player.equipmentDamage,
+        wiringFaults: player.wiringFaults,
+        dust: player.dust,
+        lastBlow: player.lastBlow,
+        lastService: player.lastService,
+        research: player.research,
+        inv: player.inv,
+        ach: player.ach,
+        powerBank: player.powerBank,
+        weather: player.weather,
+        pvpBonus: player.pvpBonus,
+        miningEarned: player.miningEarned,
+        researchTimers: player.researchTimers || {},
+        researchCompleted: player.researchCompleted || {}
+    };
+    
+    try {
+        await fetch('/api/game/save', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(saveData)
+        });
+        console.log('💾 Сохранено на сервер');
+    } catch(e) {
+        console.error('Ошибка сохранения:', e);
+    }
+}
+
+async function loadGameFromServer() {
+    if (!token) return false;
+    
+    try {
+        const res = await fetch('/api/game/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        if (data.success && data.user && data.user.save_data) {
+            const saved = data.user.save_data;
             
-            // Обновляем данные в player если он есть
-            if (window.player) {
-                window.player.username = data.user.username;
-                window.player.balance = parseFloat(data.user.balance);
-                window.player.chips = parseInt(data.user.chips);
-                window.player.basePower = parseInt(data.user.base_power);
-                
-                // Обновляем баланс на экране
-                const balanceEl = document.getElementById('balanceLarge');
-                if (balanceEl) balanceEl.innerText = window.player.balance.toFixed(8);
-                
-                if (typeof updateUI === 'function') updateUI();
-            }
+            // Загружаем все данные
+            player.balance = saved.balance ?? 0;
+            player.chips = saved.chips ?? 0;
+            player.energy = saved.energy ?? 100;
+            player.maxEnergy = saved.maxEnergy ?? 100;
+            player.basePower = saved.basePower ?? 2;
+            player.voltage = saved.voltage ?? 11.8;
+            player.oc = saved.oc ?? false;
+            player.shares = saved.shares ?? 0;
+            player.blocks = saved.blocks ?? 0;
+            player.totalShares = saved.totalShares ?? 0;
+            player.totalBlocks = saved.totalBlocks ?? 0;
+            player.totalEarned = saved.totalEarned ?? 0;
+            player.buffs = saved.buffs ?? { hash: 1, luck: 1 };
+            player.cooling = saved.cooling ?? { fan: 65, pump: 50, water: 30 };
+            player.defense = saved.defense ?? 30;
+            player.antivirus = saved.antivirus ?? 1;
+            player.firewall = saved.firewall ?? false;
+            player.stolen = saved.stolen ?? 0;
+            player.solar = saved.solar ?? 0;
+            player.inPool = saved.inPool ?? false;
+            player.poolBonus = saved.poolBonus ?? 0;
+            player.equipmentDamage = saved.equipmentDamage ?? 0;
+            player.wiringFaults = saved.wiringFaults ?? [false, false, false, false, false, false];
+            player.dust = saved.dust ?? 0;
+            player.research = saved.research ?? { gpu: false, asic: false, highEnd: false, industrial: false };
+            player.inv = saved.inv ?? { "cpu_miner": 1 };
+            player.ach = saved.ach ?? { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false };
+            player.powerBank = saved.powerBank ?? 0;
+            player.pvpBonus = saved.pvpBonus ?? 0;
+            player.researchTimers = saved.researchTimers || {};
+            player.researchCompleted = saved.researchCompleted || {};
+            player.miningEarned = saved.miningEarned ?? 0;
+            
+            window.gameActiveTime = saved.totalGameTime ?? 0;
+            player.miningTime = saved.totalMiningTime ?? 0;
+            
+            console.log('✅ Загружено с сервера');
+            
+            // Обновляем UI
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderRigs === 'function') renderRigs();
+            if (typeof recalc === 'function') recalc();
+            
+            return true;
         }
-    });
-}, 500);
+    } catch(e) {
+        console.error('Ошибка загрузки:', e);
+    }
+    return false;
+}
+
+// Автосохранение каждые 30 секунд
+setInterval(() => {
+    if (token && player && player.username) {
+        saveGameToServer();
+    }
+}, 30000);
+
+// Загружаем при старте
+setTimeout(() => {
+    loadGameFromServer();
+}, 1000);
 </script>
 
 </html>
