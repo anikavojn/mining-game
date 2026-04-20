@@ -51,7 +51,7 @@ global.economySettings = {
     sellTax: 30,
     updatedAt: new Date()
 };
-// Настройки балансировки (PvP, перегрев, штрафы и т.д.)
+
 global.balanceSettings = {
     poolBonus: 15,
     energyCost: 1,
@@ -71,18 +71,63 @@ app.use(express.static(__dirname + '/src/public'));
 
 console.log('✅ Supabase подключён:', process.env.SUPABASE_URL);
 
+// Добавляем колонку save_data в таблицу users
+async function addSaveDataColumn() {
+    try {
+        const { error } = await supabase.rpc('exec_sql', {
+            sql: 'ALTER TABLE users ADD COLUMN IF NOT EXISTS save_data JSONB'
+        });
+        if (error) {
+            const { error: alterError } = await supabase
+                .from('users')
+                .select('save_data')
+                .limit(1);
+            
+            if (alterError && alterError.message.includes('column "save_data" does not exist')) {
+                console.log('⚠️ Нужно добавить колонку save_data вручную в Supabase SQL Editor');
+                console.log('SQL: ALTER TABLE users ADD COLUMN IF NOT EXISTS save_data JSONB;');
+            } else {
+                console.log('✅ Колонка save_data уже существует');
+            }
+        } else {
+            console.log('✅ Колонка save_data добавлена');
+        }
+    } catch (err) {
+        console.log('⚠️ Не удалось добавить колонку:', err.message);
+    }
+}
+addSaveDataColumn();
+
+// ========== AUTH MIDDLEWARE (ОПРЕДЕЛЯЕМ РАНЬШЕ ВСЕХ МАРШРУТОВ) ==========
+const auth = (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+        return res.status(401).json({ error: 'Требуется авторизация' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = decoded.userId;
+        next();
+    } catch (err) {
+        res.status(401).json({ error: 'Неверный токен' });
+    }
+};
+
 // ========== СОЗДАЁМ HTTP СЕРВЕР И SOCKET.IO ==========
 const server = http.createServer(app);
 const io = socketIo(server, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
 });
+
 // ========== ОБРАБОТЧИКИ SOCKET.IO ==========
 io.on('connection', (socket) => {
     console.log('🔌 Пользователь подключился:', socket.id);
+
+    socket.emit('economy_update', global.balanceSettings);
     
     let lastAdminMessages = new Map();
 
-    // ========== ОЧИСТКА ЧАТА ДЛЯ ВСЕХ (АДМИН) ==========
     socket.on('clear_chat_for_all', (data) => {
         console.log('📡 ПОЛУЧЕНО clear_chat_for_all от:', socket.id);
         
@@ -112,7 +157,6 @@ io.on('connection', (socket) => {
         }
     });
     
-    // ========== АДМИН-ЧАТ ==========
     socket.on('admin_message', (data) => {
         if (!socket.lastAdminMessageTime) socket.lastAdminMessageTime = 0;
         const now = Date.now();
@@ -138,11 +182,10 @@ io.on('connection', (socket) => {
         console.log('📢 Админ:', data.text);
     });
     
-    // ========== ЗАПРОС ИСТОРИИ ЧАТА ==========
     socket.on('request_history', () => {
         socket.emit('chat_history', chatHistory);
     });
-        // ========== ОНЛАЙН-ПОЛЬЗОВАТЕЛИ ==========
+    
     socket.on('user_online', (username) => {
         socket.username = username;
         console.log('👤 Пользователь в сети:', username);
@@ -153,7 +196,6 @@ io.on('connection', (socket) => {
         io.emit('online_users', onlineUsers);
     });
     
-    // ========== ОБЫЧНЫЕ СООБЩЕНИЯ ==========
     socket.on('chat_message', (data) => {
         if (!data.timestamp) data.timestamp = new Date().toISOString();
         chatHistory.push(data);
@@ -164,7 +206,6 @@ io.on('connection', (socket) => {
         io.emit('chat_message', data);
     });
     
-    // ========== ОТКЛЮЧЕНИЕ ==========
     socket.on('disconnect', () => {
         console.log('🔌 Пользователь отключился:', socket.id);
         const onlineUsers = [];
@@ -293,6 +334,7 @@ app.post('/api/auth/admin/login', async (req, res) => {
     
     res.status(401).json({ error: 'Неверные данные' });
 });
+
 // Админ маршруты
 app.get('/api/admin/players', isAdmin, async (req, res) => {
     try {
@@ -404,9 +446,9 @@ app.get('/api/admin/economy', async (req, res) => {
         sellTax: 30
     }});
 });
+
 // ========== МАРШРУТЫ БАЛАНСИРОВКИ ==========
 
-// GET — получить текущие настройки балансировки
 app.get('/api/admin/balance', isAdmin, async (req, res) => {
     try {
         res.json({ success: true, settings: global.balanceSettings });
@@ -415,7 +457,6 @@ app.get('/api/admin/balance', isAdmin, async (req, res) => {
     }
 });
 
-// POST — сохранить настройки балансировки
 app.post('/api/admin/balance', isAdmin, async (req, res) => {
     try {
         const {
@@ -441,8 +482,7 @@ app.post('/api/admin/balance', isAdmin, async (req, res) => {
             updatedAt: new Date()
         };
         
-        // ОТПРАВИТЬ ВСЕМ ИГРОКАМ
-        io.emit('balance_update', global.balanceSettings);
+        io.emit('economy_update', global.balanceSettings);
         
         console.log('⚖️ Балансировка обновлена:', global.balanceSettings);
         res.json({ success: true, settings: global.balanceSettings });
@@ -452,23 +492,8 @@ app.post('/api/admin/balance', isAdmin, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-// ========== ИГРОВЫЕ МАРШРУТЫ ==========
 
-// Auth middleware для игроков
-const auth = (req, res, next) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-        return res.status(401).json({ error: 'Требуется авторизация' });
-    }
-    
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.userId = decoded.userId;
-        next();
-    } catch (err) {
-        res.status(401).json({ error: 'Неверный токен' });
-    }
-};
+// ========== ИГРОВЫЕ МАРШРУТЫ ==========
 
 // Получить профиль
 app.get('/api/game/profile', auth, async (req, res) => {
@@ -511,6 +536,7 @@ app.post('/api/game/save', auth, async (req, res) => {
                 dust: data.dust,
                 solar: data.solar,
                 power_bank: data.powerBank,
+                save_data: data.save_data,
                 last_active: new Date()
             })
             .eq('id', req.userId)

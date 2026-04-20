@@ -636,6 +636,9 @@
         <button class="btn btn-primary btn-block" id="saveBalanceBtn">💾 СОХРАНИТЬ</button>
     </div>
 </div>
+
+
+
         <!-- Управление сервером -->
         <div class="card">
             <div class="card-header" onclick="toggleCard(this)">
@@ -876,6 +879,22 @@
         stack.appendChild(toast);
         setTimeout(() => toast.remove(), 2800);
     }
+
+    // ========== ВЫХОД ИЗ АДМИН-ПАНЕЛИ ==========
+function logout() {
+    // Очищаем токен админа
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_token_expiry');
+    
+    // Очищаем сессионные данные
+    sessionStorage.clear();
+    
+    // Показываем сообщение (опционально)
+    alert('🔓 Вы вышли из админ-панели');
+    
+    // Перезагружаем страницу для показа формы входа
+    window.location.href = '/admin.html';
+}
 
     function addLog(msg, type = 'info') {
         const container = document.getElementById('logContainer');
