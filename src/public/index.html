@@ -2015,7 +2015,6 @@ function initTasks() {
     taskRefreshTime = Date.now() + 1800000;
 
     // Инициализация всех систем
-    initTasks();
     recalc();
     renderRigs();
     updateVoltage();
@@ -2029,20 +2028,10 @@ function initTasks() {
     setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
     setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
     
-    // ========== АВТОСОХРАНЕНИЕ НА СЕРВЕР ==========
-    // Каждые 30 секунд
-    setInterval(() => {
-        saveGameToServer();
-    }, 30000);
-    
-    // При закрытии страницы
-    window.addEventListener('beforeunload', () => {
-        saveGameToServer();
-    });
-    
     addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
-    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
-    console.log('✅ Игра инициализирована с серверным сохранением');
+    addLog('🎮 Стик: чётная секунда = победа, нечётная = поражение со штрафами!', 'info');
+    addLog('🔧 Система повреждений: теперь реально влияет на хешрейт!', 'info');
+    addLog('🤝 Торговля с ботами: Лиса, Медведь, Ворон, Электрик, Шут', 'info');
 }
 
 
