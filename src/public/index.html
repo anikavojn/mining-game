@@ -2014,30 +2014,6 @@ function initTasks() {
     ];
     taskRefreshTime = Date.now() + 1800000;
 
-// В функции init() или после загрузки профиля
-async function initGame() {
-    // Сначала загружаем профиль пользователя
-    await loadUserProfile();
-    
-    // Затем загружаем прогресс с сервера
-    await loadGameFromServer();
-    
-    // Загружаем локальный сейв (как резерв)
-    loadGame();
-    
-    // ========== НОВАЯ ИНИЦИАЛИЗАЦИЯ С СЕРВЕРНЫМ СОХРАНЕНИЕМ ==========
-async function initGame() {
-    console.log('🚀 Инициализация игры...');
-    
-    // Загружаем профиль пользователя
-    await loadUserProfile();
-    
-    // Загружаем прогресс с сервера
-    await loadGameFromServer();
-    
-    // Загружаем локальный сейв (как резерв, если на сервере пусто)
-    loadGame();
-    
     // Инициализация всех систем
     initTasks();
     recalc();
@@ -2069,21 +2045,7 @@ async function initGame() {
     console.log('✅ Игра инициализирована с серверным сохранением');
 }
 
-// ЗАПУСКАЕМ ИГРУ
-initGame();
-    
-    // Сохраняем при закрытии страницы
-    window.addEventListener('beforeunload', () => {
-        saveGameToServer();
-    });
-    
-    console.log('✅ Игра инициализирована с серверным сохранением');
-}
 
-// Вызываем initGame вместо старой инициализации
-initGame();
-
-}
 
 function updateTasksUI() {
     let container = document.getElementById('tasksWindowContent');
@@ -5786,11 +5748,12 @@ function showWithdrawWindow() {
 // ========== СИСТЕМА СОХРАНЕНИЯ ==========
 
 const token = localStorage.getItem('mining_token');
+let gameLoaded = false;
 
 async function loadGameFromServer() {
     if (!token) {
-        console.log('❌ Нет токена, загружаем локальный сейв');
-        if (typeof loadGame === 'function') loadGame();
+        console.log('❌ Нет токена');
+        gameLoaded = true;
         return false;
     }
     
@@ -5841,44 +5804,46 @@ async function loadGameFromServer() {
             window.gameActiveTime = saved.totalGameTime ?? 0;
             player.miningTime = saved.totalMiningTime ?? 0;
             player.lastMiningCheck = Date.now();
-            
-            if (typeof updateUI === 'function') updateUI();
-            if (typeof renderRigs === 'function') renderRigs();
-            if (typeof recalc === 'function') recalc();
-            
-            const minerCheckbox = document.getElementById('minerMain');
-            if (minerCheckbox) minerCheckbox.checked = player.mining;
-            
-            const ocCheckbox = document.getElementById('overclock');
-            if (ocCheckbox) ocCheckbox.checked = player.oc;
-            
-            const fanSlider = document.getElementById('coolFanSlider');
-            if (fanSlider) fanSlider.value = player.cooling.fan;
-            const pumpSlider = document.getElementById('coolPumpSlider');
-            if (pumpSlider) pumpSlider.value = player.cooling.pump;
-            const waterSlider = document.getElementById('coolWaterSlider');
-            if (waterSlider) waterSlider.value = player.cooling.water;
-            
-            if (typeof updateCooling === 'function') updateCooling();
-            if (typeof updateWiringDisplay === 'function') updateWiringDisplay();
-            if (typeof updateVoltage === 'function') updateVoltage();
+            player.startTime = Date.now();
             
             console.log('✅ Загружено с сервера');
-            return true;
         } else {
             console.log('📦 Нет сохранения на сервере');
-            if (typeof loadGame === 'function') loadGame();
-            return false;
         }
     } catch (err) {
         console.error('❌ Ошибка загрузки:', err);
-        if (typeof loadGame === 'function') loadGame();
-        return false;
     }
+    
+    // ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ПОСЛЕ ЗАГРУЗКИ
+    if (typeof updateUI === 'function') updateUI();
+    if (typeof renderRigs === 'function') renderRigs();
+    if (typeof recalc === 'function') recalc();
+    if (typeof updateVoltage === 'function') updateVoltage();
+    if (typeof updateWiringDisplay === 'function') updateWiringDisplay();
+    if (typeof updateCooling === 'function') updateCooling();
+    
+    // Синхронизируем тумблеры
+    const minerCheckbox = document.getElementById('minerMain');
+    if (minerCheckbox) minerCheckbox.checked = player.mining;
+    
+    const ocCheckbox = document.getElementById('overclock');
+    if (ocCheckbox) ocCheckbox.checked = player.oc;
+    
+    // Обновляем слайдеры охлаждения
+    const fanSlider = document.getElementById('coolFanSlider');
+    if (fanSlider) fanSlider.value = player.cooling.fan;
+    const pumpSlider = document.getElementById('coolPumpSlider');
+    if (pumpSlider) pumpSlider.value = player.cooling.pump;
+    const waterSlider = document.getElementById('coolWaterSlider');
+    if (waterSlider) waterSlider.value = player.cooling.water;
+    
+    gameLoaded = true;
+    return true;
 }
 
 async function saveGameToServer() {
     if (!token) return false;
+    if (!gameLoaded) return false;
     
     if (document.visibilityState === 'visible') {
         const now = Date.now();
@@ -5944,22 +5909,26 @@ async function saveGameToServer() {
     return false;
 }
 
-// Автосохранение
-setInterval(() => {
-    if (token && player && player.username) {
-        saveGameToServer();
-    }
-}, 30000);
-
-window.addEventListener('beforeunload', () => {
-    if (token && player) {
-        saveGameToServer();
-    }
-});
-
-setTimeout(() => {
-    loadGameFromServer();
-}, 500);
+// Загружаем игру ДО того, как запускаются интервалы
+(async function initGameWithSave() {
+    console.log('🚀 Инициализация игры с загрузкой...');
+    await loadGameFromServer();
+    
+    // Автосохранение каждые 30 секунд
+    setInterval(() => {
+        if (token && player && gameLoaded) {
+            saveGameToServer();
+        }
+    }, 30000);
+    
+    window.addEventListener('beforeunload', () => {
+        if (token && player && gameLoaded) {
+            saveGameToServer();
+        }
+    });
+    
+    console.log('💾 Система сохранения активирована');
+})();
 
 // ========== ОБНОВЛЕНИЕ ИМЕНИ ПОЛЬЗОВАТЕЛЯ ==========
 async function loadUsername() {
@@ -5987,8 +5956,6 @@ async function loadUsername() {
 }
 
 loadUsername();
-
-console.log('💾 Система сохранения активирована');
 </script>
 
 </body>
