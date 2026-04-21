@@ -3656,23 +3656,23 @@ window.socket.on('economy_update', (settings) => {
         // Обновляем переменные в игре
         if (settings.shareReward !== undefined) {
             window.shareReward = settings.shareReward;
-            addLog(`📊 Награда за шару изменена: ${settings.shareReward} SOL`, 'info');
+            
         }
         
         if (settings.blockReward !== undefined) {
             window.blockReward = settings.blockReward;
-            addLog(`🏆 Награда за блок изменена: ${settings.blockReward} SOL`, 'info');
+            
         }
         
         if (settings.poolBonus !== undefined && player) {
             player.poolBonus = settings.poolBonus;
-            addLog(`🤝 Бонус пула изменён: +${settings.poolBonus}%`, 'info');
+        
             if (typeof recalc === 'function') recalc();
         }
         
         if (settings.energyCost !== undefined) {
             window.energyCostMultiplier = settings.energyCost;
-            addLog(`⚡ Стоимость энергии изменена: x${settings.energyCost}`, 'info');
+        
         }
         
         // Показываем уведомление игроку
@@ -4326,7 +4326,7 @@ player.research = { gpu: false, asic: false, highEnd: false, industrial: false }
         recalc();
         renderRigs();
         updateUI();
-        saveGame();
+        
         addLog(`🔄 Настройки и статистика сброшены!`, 'success');
         toast(`Настройки и статистика сброшены!`);
         playSuccess();
@@ -5465,13 +5465,6 @@ document.querySelectorAll('.dummy-btn[data-dummy="5"]').forEach(btn => {
 
 // 7. Инициализация при старте
 updatePowerBankUI();
-
-// Автосохранение
-setInterval(() => { saveGame(); }, 3000);
-window.addEventListener('beforeunload', () => { saveGame(); });
-
-// Загружаем игру при старте
-setTimeout(() => { loadGame(); }, 100);
 
 // ===== ЗАПУСК АВТООБНОВЛЕНИЯ ОКОН =====
 setTimeout(() => { 
