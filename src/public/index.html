@@ -1708,8 +1708,45 @@ function addLog(msg, type = 'info') {
         }
     });
     
+    // ОБНОВЛЯЕМ ТЕРМИНАЛ
+    document.querySelectorAll('.terminal-content').forEach(t => {
+        if (t) {
+            let html = '';
+            for (let i = globalLogs.length - 1; i >= 0; i--) {
+                let l = globalLogs[i];
+                html += `<div class="log-entry ${l.type}">[${l.time}] ${l.msg}</div>`;
+            }
+            t.innerHTML = html;
+        }
+    });
+    
     console.log(`[${type}] ${msg}`);
 }
+    const entry = { time: new Date().toLocaleTimeString(), msg: msg, type: type };
+    globalLogs.unshift(entry);
+    if (globalLogs.length > 500) globalLogs.pop();
+    
+    // ОБНОВЛЯЕМ ВСЕ ОТКРЫТЫЕ ОКНА ЖУРНАЛА
+    document.querySelectorAll('.floating-window').forEach(win => {
+        const title = win.querySelector('.window-title')?.innerText || '';
+        if (title.includes('ЖУРНАЛ')) {
+            const logList = win.querySelector('#logList');
+            if (logList) {
+                let filtered = globalLogs.filter(l => {
+                    const filter = win._logFilter || 'all';
+                    return filter === 'all' ? true : l.type === filter;
+                });
+                let html = '';
+                for (let i = 0; i < Math.min(filtered.length, 100); i++) {
+                    let l = filtered[i];
+                    html += '<div class="log-entry ' + l.type + '">[' + l.time + '] ' + l.msg + '</div>';
+                }
+                logList.innerHTML = html || '<div>Нет событий</div>';
+            }
+        }
+    });
+    
+    
 
 setInterval(() => { if(globalLogs.length) console.log('Журнал жив, записей:', globalLogs.length); }, 30000);
 
