@@ -1688,7 +1688,6 @@ function addLog(msg, type = 'info') {
     globalLogs.unshift(entry);
     if (globalLogs.length > 500) globalLogs.pop();
     
-    // ОБНОВЛЯЕМ ВСЕ ОТКРЫТЫЕ ОКНА ЖУРНАЛА
     document.querySelectorAll('.floating-window').forEach(win => {
         const title = win.querySelector('.window-title')?.innerText || '';
         if (title.includes('ЖУРНАЛ')) {
