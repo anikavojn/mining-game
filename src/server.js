@@ -513,10 +513,12 @@ app.get('/api/game/profile', auth, async (req, res) => {
 });
 
 // Сохранить прогресс
+// Сохранить прогресс
 app.post('/api/game/save', auth, async (req, res) => {
     try {
         const data = req.body;
         
+        // Сохраняем ВСЕ данные в колонку save_data
         const { data: user, error } = await supabase
             .from('users')
             .update({
@@ -536,15 +538,38 @@ app.post('/api/game/save', auth, async (req, res) => {
                 dust: data.dust,
                 solar: data.solar,
                 power_bank: data.powerBank,
-                save_data: data.save_data,
+                save_data: data,  // <-- ЭТО ГЛАВНОЕ! Сохраняем всё
                 last_active: new Date()
             })
             .eq('id', req.userId)
             .select()
             .single();
         
+        if (error) throw error;
         res.json({ success: true, user });
     } catch (err) {
+        console.error('Save error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Загрузить прогресс
+app.get('/api/game/load', auth, async (req, res) => {
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('save_data')
+            .eq('id', req.userId)
+            .single();
+        
+        if (error) throw error;
+        
+        res.json({ 
+            success: true, 
+            save_data: user.save_data || null 
+        });
+    } catch (err) {
+        console.error('Load error:', err);
         res.status(500).json({ error: err.message });
     }
 });

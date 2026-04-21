@@ -1006,13 +1006,6 @@ let damage = Math.floor(stickFailPen / 3) + Math.floor(Math.random() * (stickFai
     return false;
 }
 
-function updateProfileDisplay() {
-    const profileSpan = document.getElementById('profileUsername');
-    if (profileSpan && player.username) {
-        profileSpan.innerText = player.username;
-    }
-}
-
 // Вызывайте эту функцию после загрузки профиля и после updateUI
 
 async function syncBalanceToServer() {
@@ -1712,158 +1705,6 @@ function addLog(msg, type = 'info') {
                 }
                 logList.innerHTML = html || '<div>Нет событий</div>';
             }
-        }
-
-// ========== СОХРАНЕНИЕ И ЗАГРУЗКА ПРОГРЕССА НА СЕРВЕР ==========
-
-async function loadGameFromServer() {
-    if (!token) return false;
-    
-    try {
-        const res = await fetch('/api/game/profile', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (data.success && data.user) {
-            
-            // ========== ОБНОВЛЯЕМ ИМЯ В ИНТЕРФЕЙСЕ ==========
-            const usernameSpan = document.getElementById('profileUsername');
-            if (usernameSpan && data.user.username) {
-                usernameSpan.innerText = data.user.username;
-            }
-            
-            const profileBtn = document.getElementById('profileBtn');
-            if (profileBtn && data.user.username) {
-                profileBtn.innerHTML = `<span></span> <span id="profileUsername">${data.user.username}</span> <span>▼</span>`;
-            }
-            // ================================================
-            
-            if (data.user.save_data) {
-                const saved = data.user.save_data;
-                
-                player.balance = saved.balance ?? 0;
-                player.chips = saved.chips ?? 0;
-                player.energy = saved.energy ?? 100;
-                player.maxEnergy = saved.maxEnergy ?? 100;
-                player.basePower = saved.basePower ?? 2;
-                player.voltage = saved.voltage ?? 11.8;
-                player.oc = saved.oc ?? false;
-                player.shares = saved.shares ?? 0;
-                player.blocks = saved.blocks ?? 0;
-                player.totalShares = saved.totalShares ?? 0;
-                player.totalBlocks = saved.totalBlocks ?? 0;
-                player.totalEarned = saved.totalEarned ?? 0;
-                player.buffs = saved.buffs ?? { hash: 1, luck: 1 };
-                player.cooling = saved.cooling ?? { fan: 65, pump: 50, water: 30 };
-                player.defense = saved.defense ?? 30;
-                player.antivirus = saved.antivirus ?? 1;
-                player.firewall = saved.firewall ?? false;
-                player.stolen = saved.stolen ?? 0;
-                player.solar = saved.solar ?? 0;
-                player.inPool = saved.inPool ?? false;
-                player.poolBonus = saved.poolBonus ?? 0;
-                player.equipmentDamage = saved.equipmentDamage ?? 0;
-                player.wiringFaults = saved.wiringFaults ?? [false, false, false, false, false, false];
-                player.dust = saved.dust ?? 0;
-                player.research = saved.research ?? { gpu: false, asic: false, highEnd: false, industrial: false };
-                player.inv = saved.inv ?? { "cpu_miner": 1 };
-                player.ach = saved.ach ?? { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false };
-                player.powerBank = saved.powerBank ?? 0;
-                player.pvpBonus = saved.pvpBonus ?? 0;
-                player.researchTimers = saved.researchTimers || {};
-                player.researchCompleted = saved.researchCompleted || {};
-                player.miningEarned = saved.miningEarned ?? 0;
-                
-                window.gameActiveTime = saved.totalGameTime ?? 0;
-                player.miningTime = saved.totalMiningTime ?? 0;
-                
-                console.log('✅ Загружено с сервера');
-            }
-            
-            // Обновляем баланс на экране
-            const balanceEl = document.getElementById('balanceLarge');
-            if (balanceEl) balanceEl.innerText = player.balance.toFixed(8);
-            
-            const chipsEl = document.getElementById('chipsCount');
-            if (chipsEl) chipsEl.innerText = Math.floor(player.chips);
-            
-            if (typeof updateUI === 'function') updateUI();
-            if (typeof renderRigs === 'function') renderRigs();
-            if (typeof recalc === 'function') recalc();
-            
-            return true;
-        }
-    } catch(e) {
-        console.error('Ошибка загрузки:', e);
-    }
-    return false;
-}
-
-// Сохранение прогресса на сервер
-async function saveGameToServer() {
-    const token = localStorage.getItem('mining_token');
-    if (!token) return false;
-    
-    // Обновляем активное время игры
-    if (document.visibilityState === 'visible') {
-        const now = Date.now();
-        window.gameActiveTime += now - window.lastActiveCheck;
-        window.lastActiveCheck = now;
-    }
-    
-    try {
-        const response = await fetch('/api/game/save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                balance: player.balance,
-                chips: player.chips,
-                energy: player.energy,
-                basePower: player.basePower,
-                shares: player.shares,
-                blocks: player.blocks,
-                totalShares: player.totalShares,
-                totalBlocks: player.totalBlocks,
-                totalEarned: player.totalEarned,
-                miningEarned: player.miningEarned,
-                equipmentDamage: player.equipmentDamage,
-                inv: player.inv,
-                research: player.research,
-                dust: player.dust,
-                solar: player.solar,
-                powerBank: player.powerBank
-            })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-            console.log('💾 Прогресс сохранён на сервер');
-            return true;
-        } else {
-            console.error('❌ Ошибка сохранения:', data.error);
-            return false;
-        }
-    } catch (err) {
-        console.error('❌ Ошибка сохранения:', err);
-        return false;
-    }
-}
-
-    });
-    
-    // ОБНОВЛЯЕМ ТЕРМИНАЛ
-    document.querySelectorAll('.terminal-content').forEach(t => {
-        if (t) {
-            let html = '';
-            for (let i = globalLogs.length - 1; i >= 0; i--) {
-                let l = globalLogs[i];
-                html += `<div class="log-entry ${l.type}">[${l.time}] ${l.msg}</div>`;
-            }
-            t.innerHTML = html;
         }
     });
     
@@ -5941,100 +5782,42 @@ function showWithdrawWindow() {
 
 </script>
 
-
-
-</body>
-
 <script>
-// ========== СОХРАНЕНИЕ НА СЕРВЕРЕ (РАБОТАЕТ) ==========
+// ========== СИСТЕМА СОХРАНЕНИЯ ==========
 
 const token = localStorage.getItem('mining_token');
 
-async function saveGameToServer() {
-    if (!token) return;
-    
-    const saveData = {
-        balance: player.balance,
-        chips: player.chips,
-        energy: player.energy,
-        maxEnergy: player.maxEnergy,
-        basePower: player.basePower,
-        voltage: player.voltage,
-        mining: player.mining,
-        oc: player.oc,
-        shares: player.shares,
-        blocks: player.blocks,
-        totalShares: player.totalShares,
-        totalBlocks: player.totalBlocks,
-        totalEarned: player.totalEarned,
-        spm: player.spm,
-        totalGameTime: window.gameActiveTime,
-        totalMiningTime: player.miningTime,
-        buffs: player.buffs,
-        cooling: player.cooling,
-        defense: player.defense,
-        antivirus: player.antivirus,
-        firewall: player.firewall,
-        stolen: player.stolen,
-        solar: player.solar,
-        inPool: player.inPool,
-        poolBonus: player.poolBonus,
-        equipmentDamage: player.equipmentDamage,
-        wiringFaults: player.wiringFaults,
-        dust: player.dust,
-        lastBlow: player.lastBlow,
-        lastService: player.lastService,
-        research: player.research,
-        inv: player.inv,
-        ach: player.ach,
-        powerBank: player.powerBank,
-        weather: player.weather,
-        pvpBonus: player.pvpBonus,
-        miningEarned: player.miningEarned,
-        researchTimers: player.researchTimers || {},
-        researchCompleted: player.researchCompleted || {}
-    };
-    
-    try {
-        await fetch('/api/game/save', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(saveData)
-        });
-        console.log('💾 Сохранено на сервер');
-    } catch(e) {
-        console.error('Ошибка сохранения:', e);
-    }
-}
-
 async function loadGameFromServer() {
-    if (!token) return false;
+    if (!token) {
+        console.log('❌ Нет токена, загружаем локальный сейв');
+        if (typeof loadGame === 'function') loadGame();
+        return false;
+    }
     
     try {
-        const res = await fetch('/api/game/profile', {
+        console.log('🔄 Загрузка с сервера...');
+        const res = await fetch('/api/game/load', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
         
-        if (data.success && data.user && data.user.save_data) {
-            const saved = data.user.save_data;
+        if (data.success && data.save_data) {
+            const saved = data.save_data;
             
-            // Загружаем все данные
             player.balance = saved.balance ?? 0;
             player.chips = saved.chips ?? 0;
             player.energy = saved.energy ?? 100;
             player.maxEnergy = saved.maxEnergy ?? 100;
             player.basePower = saved.basePower ?? 2;
             player.voltage = saved.voltage ?? 11.8;
+            player.mining = saved.mining ?? false;
             player.oc = saved.oc ?? false;
             player.shares = saved.shares ?? 0;
             player.blocks = saved.blocks ?? 0;
             player.totalShares = saved.totalShares ?? 0;
             player.totalBlocks = saved.totalBlocks ?? 0;
             player.totalEarned = saved.totalEarned ?? 0;
+            player.miningEarned = saved.miningEarned ?? 0;
             player.buffs = saved.buffs ?? { hash: 1, luck: 1 };
             player.cooling = saved.cooling ?? { fan: 65, pump: 50, water: 30 };
             player.defense = saved.defense ?? 30;
@@ -6054,89 +5837,159 @@ async function loadGameFromServer() {
             player.pvpBonus = saved.pvpBonus ?? 0;
             player.researchTimers = saved.researchTimers || {};
             player.researchCompleted = saved.researchCompleted || {};
-            player.miningEarned = saved.miningEarned ?? 0;
             
             window.gameActiveTime = saved.totalGameTime ?? 0;
             player.miningTime = saved.totalMiningTime ?? 0;
+            player.lastMiningCheck = Date.now();
             
-            console.log('✅ Загружено с сервера');
-            
-            // Обновляем UI
             if (typeof updateUI === 'function') updateUI();
             if (typeof renderRigs === 'function') renderRigs();
             if (typeof recalc === 'function') recalc();
             
+            const minerCheckbox = document.getElementById('minerMain');
+            if (minerCheckbox) minerCheckbox.checked = player.mining;
+            
+            const ocCheckbox = document.getElementById('overclock');
+            if (ocCheckbox) ocCheckbox.checked = player.oc;
+            
+            const fanSlider = document.getElementById('coolFanSlider');
+            if (fanSlider) fanSlider.value = player.cooling.fan;
+            const pumpSlider = document.getElementById('coolPumpSlider');
+            if (pumpSlider) pumpSlider.value = player.cooling.pump;
+            const waterSlider = document.getElementById('coolWaterSlider');
+            if (waterSlider) waterSlider.value = player.cooling.water;
+            
+            if (typeof updateCooling === 'function') updateCooling();
+            if (typeof updateWiringDisplay === 'function') updateWiringDisplay();
+            if (typeof updateVoltage === 'function') updateVoltage();
+            
+            console.log('✅ Загружено с сервера');
+            return true;
+        } else {
+            console.log('📦 Нет сохранения на сервере');
+            if (typeof loadGame === 'function') loadGame();
+            return false;
+        }
+    } catch (err) {
+        console.error('❌ Ошибка загрузки:', err);
+        if (typeof loadGame === 'function') loadGame();
+        return false;
+    }
+}
+
+async function saveGameToServer() {
+    if (!token) return false;
+    
+    if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        window.gameActiveTime += now - window.lastActiveCheck;
+        window.lastActiveCheck = now;
+    }
+    
+    const saveData = {
+        balance: player.balance,
+        chips: player.chips,
+        energy: player.energy,
+        maxEnergy: player.maxEnergy,
+        basePower: player.basePower,
+        voltage: player.voltage,
+        mining: player.mining,
+        oc: player.oc,
+        shares: player.shares,
+        blocks: player.blocks,
+        totalShares: player.totalShares,
+        totalBlocks: player.totalBlocks,
+        totalEarned: player.totalEarned,
+        miningEarned: player.miningEarned,
+        buffs: player.buffs,
+        cooling: player.cooling,
+        defense: player.defense,
+        antivirus: player.antivirus,
+        firewall: player.firewall,
+        stolen: player.stolen,
+        solar: player.solar,
+        inPool: player.inPool,
+        poolBonus: player.poolBonus,
+        equipmentDamage: player.equipmentDamage,
+        wiringFaults: player.wiringFaults,
+        dust: player.dust,
+        research: player.research,
+        inv: player.inv,
+        ach: player.ach,
+        powerBank: player.powerBank,
+        pvpBonus: player.pvpBonus,
+        researchTimers: player.researchTimers,
+        researchCompleted: player.researchCompleted,
+        totalGameTime: window.gameActiveTime,
+        totalMiningTime: player.miningTime
+    };
+    
+    try {
+        const res = await fetch('/api/game/save', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(saveData)
+        });
+        const data = await res.json();
+        if (data.success) {
+            console.log('💾 Сохранено на сервер');
             return true;
         }
-    } catch(e) {
-        console.error('Ошибка загрузки:', e);
+    } catch (err) {
+        console.error('❌ Ошибка сохранения:', err);
     }
     return false;
 }
 
-// Автосохранение каждые 30 секунд
+// Автосохранение
 setInterval(() => {
     if (token && player && player.username) {
         saveGameToServer();
     }
 }, 30000);
 
-// Загружаем при старте
+window.addEventListener('beforeunload', () => {
+    if (token && player) {
+        saveGameToServer();
+    }
+});
+
 setTimeout(() => {
     loadGameFromServer();
-}, 1000);
-</script>
-<script>
-// ========== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ИМЕНИ ==========
-(function forceUpdateName() {
-    const token = localStorage.getItem('mining_token');
+}, 500);
+
+// ========== ОБНОВЛЕНИЕ ИМЕНИ ПОЛЬЗОВАТЕЛЯ ==========
+async function loadUsername() {
     if (!token) return;
     
-    fetch('/api/game/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
+    try {
+        const res = await fetch('/api/game/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
         if (data.success && data.user && data.user.username) {
-            // Обновляем спан
             const nameSpan = document.getElementById('profileUsername');
             if (nameSpan) {
                 nameSpan.innerText = data.user.username;
-                console.log('✅ Имя обновлено:', data.user.username);
             }
-            
-            // Обновляем всю кнопку
-            const profileBtn = document.getElementById('profileBtn');
-            if (profileBtn) {
-                profileBtn.innerHTML = `<span></span> <span id="profileUsername">${data.user.username}</span> <span>▼</span>`;
+            if (player) {
+                player.username = data.user.username;
             }
-            
-            // Сохраняем в объект player
-            if (window.player) {
-                window.player.username = data.user.username;
-            }
+            console.log('✅ Имя загружено:', data.user.username);
         }
-    })
-    .catch(err => console.error('Ошибка загрузки имени:', err));
-})();
+    } catch (err) {
+        console.error('Ошибка загрузки имени:', err);
+    }
+}
 
-// Также пробуем обновить после загрузки DOM
-document.addEventListener('DOMContentLoaded', function() {
-    const token = localStorage.getItem('mining_token');
-    if (!token) return;
-    
-    fetch('/api/game/profile', {
-        headers: { 'Authorization': `Bearer ${token}` }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success && data.user && data.user.username) {
-            const nameSpan = document.getElementById('profileUsername');
-            if (nameSpan && nameSpan.innerText === 'Информация') {
-                nameSpan.innerText = data.user.username;
-            }
-        }
-    });
-});
+loadUsername();
+
+console.log('💾 Система сохранения активирована');
 </script>
+
+</body>
 </html>
