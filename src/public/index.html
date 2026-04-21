@@ -3508,196 +3508,120 @@ if (savedUserForChat) {
 if (!window.socket) {
     window.socket = io();
 
-    // ========== ПРИМЕНЕНИЕ НАСТРОЕК ОТ АДМИНА ==========
+// ========== ПРИМЕНЕНИЕ НАСТРОЕК ОТ АДМИНА ==========
+
+// ЕДИНАЯ функция применения настроек
 function applyBalanceSettings(settings) {
     if (!settings) return;
     
-    console.log('🔄 Применяем настройки админа:', settings);
+    console.log('🔧 ПРИМЕНЯЕМ НАСТРОЙКИ АДМИНА:', settings);
     
+    // Сохраняем оригинальные настройки
     window.balanceSettings = settings;
     
-    // Награды
-    if (settings.shareReward !== undefined) window.shareReward = settings.shareReward;
-    if (settings.blockReward !== undefined) window.blockReward = settings.blockReward;
-    if (settings.chipsReward !== undefined) window.chipsPerShare = settings.chipsReward;
-    if (settings.sellTax !== undefined) window.sellTax = settings.sellTax;
+    // Настройки экономики (награды)
+    window.economySettings = {
+        shareReward: settings.shareReward ?? 0.00002,
+        blockReward: settings.blockReward ?? 0.05,
+        chipsReward: settings.chipsReward ?? 2,
+        sellTax: settings.sellTax ?? 30
+    };
     
-    // Балансировка
-    if (settings.poolBonus !== undefined && player) {
-        player.poolBonus = settings.poolBonus;
-        if (player.inPool && typeof recalc === 'function') recalc();
-    }
-    
-    if (settings.energyCost !== undefined) {
-        window.energyCostMultiplier = settings.energyCost;
-    }
-    
-    // Сохраняем для использования в механиках
+    // Настройки балансировки (механики)
     window.gameBalance = {
-    overheatDmg: settings.overheatDmg || 3,
-    voltagePen: settings.voltagePen || 15,
-    pvpChance: settings.pvpChance || 35,
-    pvpFailPen: settings.pvpFailPen || 15,
-    stickFailPen: settings.stickFailPen || 15,
-    stickWinBonus: settings.stickWinBonus || 0.00000001,
-    poolBonus: settings.poolBonus || 15,
-    energyCost: settings.energyCost || 1,
-    repairCost: 0.00000001,
-    repairChips: 2
-};
+        overheatDmg: settings.overheatDmg ?? 3,
+        voltagePen: settings.voltagePen ?? 15,
+        pvpChance: settings.pvpChance ?? 35,
+        pvpFailPen: settings.pvpFailPen ?? 15,
+        stickFailPen: settings.stickFailPen ?? 15,
+        stickWinBonus: settings.stickWinBonus ?? 0.000001,
+        poolBonus: settings.poolBonus ?? 15,
+        energyCost: settings.energyCost ?? 1,
+        repairCost: 0.00000001,
+        repairChips: 2
+    };
     
-    
-}
-
-// Подписываемся на обновления
-if (typeof socket !== 'undefined') {
-    socket.on('economy_update', (data) => {
-        console.log('📡 Получены настройки от сервера:', data);
-        applyBalanceSettings(data);
-    });
-    
-    // Загружаем настройки при старте
-    setTimeout(() => {
-        fetch('/api/admin/balance')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) applyBalanceSettings(data.settings);
-            })
-            .catch(err => console.error('Ошибка загрузки настроек:', err));
-    }, 1000);
-}
-
-    // ========== ОБРАБОТЧИКИ СОКЕТА ==========
-    // Проверяем, что игра получает обновления
-window.socket.on('economy_update', (data) => {
-    console.log('🎯🎯🎯 ИГРА ПОЛУЧИЛА ОБНОВЛЕНИЕ!', data);
-    window.economySettings = data;
-    
-    // Обновляем локальные настройки в игре
-    if (typeof window.updateBalanceSettings === 'function') {
-        window.updateBalanceSettings(data);
+    // Применяем бонус пула к игроку
+    if (player && player.inPool) {
+        player.poolBonus = window.gameBalance.poolBonus;
+        if (typeof recalc === 'function') recalc();
     }
     
-    
-});
-    
-    // Получение обновлений экономики от админа
-    window.socket.on('force_reload', () => {
-    location.reload();
-});
+    console.log('✅ Награда за шару:', window.economySettings.shareReward, 'SOL');
+    console.log('✅ Чипов за шару:', window.economySettings.chipsReward);
+    console.log('✅ Бонус пула:', window.gameBalance.poolBonus, '%');
+}
 
+// Принудительная загрузка настроек с сервера ПРИ СТАРТЕ
+(async function loadAdminSettingsOnStart() {
+    try {
+        console.log('🔄 Загрузка настроек админа с сервера...');
+        const res = await fetch('/api/admin/balance');
+        const data = await res.json();
+        if (data.success && data.settings) {
+            applyBalanceSettings(data.settings);
+        } else {
+            console.log('⚠️ Настройки не найдены, используем дефолтные');
+            applyBalanceSettings({});
+        }
+    } catch (err) {
+        console.error('❌ Ошибка загрузки настроек:', err);
+        applyBalanceSettings({});
+    }
+})();
 
-    window.socket.on('economy_update', (settings) => {
-        console.log('💰 Экономика обновлена администратором:', settings);
-        window.economySettings = settings;
+// Подключаем Socket.IO обработчики (ТОЛЬКО ОДИН РАЗ!)
+if (window.socket) {
+    // Удаляем старые обработчики, чтобы избежать дублей
+    window.socket.off('economy_update');
+    window.socket.off('force_reload');
+    window.socket.off('chat_cleared_by_admin');
+    
+    // ОСНОВНОЙ обработчик обновления экономики
+    window.socket.on('economy_update', (data) => {
+        console.log('📡 ПОЛУЧЕНЫ НАСТРОЙКИ ОТ АДМИНА В РЕАЛЬНОМ ВРЕМЕНИ:', data);
+        applyBalanceSettings(data);
         
+        // Показываем уведомление игроку об изменении
+        if (data.shareReward) {
+            toast(`💰 Награда за шару изменена: ${data.shareReward} SOL`);
+        }
+        if (data.chipsReward) {
+            toast(`🔧 Чипов за шару: ${data.chipsReward}`);
+        }
+        if (data.poolBonus) {
+            toast(`🤝 Бонус пула: +${data.poolBonus}%`);
+        }
     });
-
-    window.socket.on('connect', () => {
-        console.log('✅ Чат подключён к серверу');
-        if (currentUsername) {
-            window.socket.emit('user_online', currentUsername);
-
-        // ========== ОЧИСТКА ЧАТА АДМИНИСТРАТОРОМ ==========
+    
+    // Обработчик принудительной перезагрузки
+    window.socket.on('force_reload', () => {
+        console.log('🔄 Сервер требует перезагрузки');
+        toast('🔄 Администратор обновил настройки, страница будет перезагружена');
+        setTimeout(() => location.reload(), 2000);
+    });
+    
+    // Обработчик очистки чата
     window.socket.on('chat_cleared_by_admin', () => {
         console.log('🧹 Чат очищен администратором');
-        
-        // Очищаем локальный массив сообщений во всех окнах чата
         document.querySelectorAll('.floating-window').forEach(win => {
             const title = win.querySelector('.window-title')?.innerText || '';
             if (title.includes('ЧАТ')) {
                 const messagesDiv = win.querySelector('.chat-messages-win');
-                if (messagesDiv) {
-                    messagesDiv.innerHTML = '';
-                }
-                // Если есть локальный массив у окна
-                if (win._chatMessages) {
-                    win._chatMessages = [];
-                }
+                if (messagesDiv) messagesDiv.innerHTML = '';
+                if (win._chatMessages) win._chatMessages = [];
             }
         });
-        
-        // Также очищаем глобальный массив если он есть
-        if (typeof chatMsgs !== 'undefined') {
-            chatMsgs = [];
-        }
-        
-        // Не показываем тост — только тихая очистка
-    });        
-
-            
-        }
-    });
-}
-
-// ============================================
-// ПРИЁМ ОБНОВЛЕНИЙ ЭКОНОМИКИ ОТ АДМИНА
-// ============================================
-
-if (window.socket) {
-    // Обработчик обновления экономических настроек
-    window.socket.on('economy_update', (settings) => {
-        console.log('💰 Экономика обновлена:', settings);
-
-        // Получение обновлений экономики от админа
-window.socket.on('economy_update', (settings) => {
-    console.log('💰 Экономика обновлена администратором:', settings);
-    
-    // Сохраняем настройки в глобальные переменные
-    window.economySettings = settings;
-    
-    // Показываем уведомление игроку
-    
-});
-        
-        // Сохраняем настройки в глобальную переменную
-        window.economySettings = settings;
-        
-        // Обновляем переменные в игре
-        if (settings.shareReward !== undefined) {
-            window.shareReward = settings.shareReward;
-            
-        }
-        
-        if (settings.blockReward !== undefined) {
-            window.blockReward = settings.blockReward;
-            
-        }
-        
-        if (settings.poolBonus !== undefined && player) {
-            player.poolBonus = settings.poolBonus;
-        
-            if (typeof recalc === 'function') recalc();
-        }
-        
-        if (settings.energyCost !== undefined) {
-            window.energyCostMultiplier = settings.energyCost;
-        
-        }
-        
-        // Показываем уведомление игроку
-        
-        playClick();
-        
-        // Обновляем UI если нужно
-        if (typeof updateUI === 'function') updateUI();
+        if (typeof chatMsgs !== 'undefined') chatMsgs = [];
     });
     
-    // Также можно добавить обработчик для отдельных параметров
-    window.socket.on('share_reward_update', (reward) => {
-        console.log('💰 Награда за шару обновлена:', reward);
-        window.shareReward = reward;
-        addLog(`📊 Награда за шару: ${reward} SOL`, 'info');
+    // Подключение к чату
+    window.socket.on('connect', () => {
+        console.log('✅ Чат подключён к серверу');
+        if (currentUsername) {
+            window.socket.emit('user_online', currentUsername);
+        }
     });
-    
-    window.socket.on('block_reward_update', (reward) => {
-        console.log('🏆 Награда за блок обновлена:', reward);
-        window.blockReward = reward;
-        addLog(`🏆 Награда за блок: ${reward} SOL`, 'info');
-    });
-
-
-    
 }
 
 function renderChat(cont, wid) {
@@ -3760,7 +3684,58 @@ function renderChat(cont, wid) {
     input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
     
     // НАСТРОЙКА СОКЕТ-ОБРАБОТЧИКОВ
-    if (window.socket) {
+    // Подключаем Socket.IO обработчики
+if (window.socket) {
+    // Удаляем старые обработчики, чтобы избежать дублей
+    window.socket.off('economy_update');
+    window.socket.off('force_reload');
+    window.socket.off('chat_cleared_by_admin');
+    
+    // ОСНОВНОЙ обработчик обновления экономики
+    window.socket.on('economy_update', (data) => {
+        console.log('📡 ПОЛУЧЕНЫ НАСТРОЙКИ ОТ АДМИНА В РЕАЛЬНОМ ВРЕМЕНИ:', data);
+        applyBalanceSettings(data);
+        
+        if (data.shareReward) {
+            toast(`💰 Награда за шару изменена: ${data.shareReward} SOL`);
+        }
+        if (data.chipsReward) {
+            toast(`🔧 Чипов за шару: ${data.chipsReward}`);
+        }
+        if (data.poolBonus) {
+            toast(`🤝 Бонус пула: +${data.poolBonus}%`);
+        }
+    });
+    
+    // Обработчик принудительной перезагрузки
+    window.socket.on('force_reload', () => {
+        console.log('🔄 Сервер требует перезагрузки');
+        toast('🔄 Администратор обновил настройки, страница будет перезагружена');
+        setTimeout(() => location.reload(), 2000);
+    });
+    
+    // Обработчик очистки чата
+    window.socket.on('chat_cleared_by_admin', () => {
+        console.log('🧹 Чат очищен администратором');
+        document.querySelectorAll('.floating-window').forEach(win => {
+            const title = win.querySelector('.window-title')?.innerText || '';
+            if (title.includes('ЧАТ')) {
+                const messagesDiv = win.querySelector('.chat-messages-win');
+                if (messagesDiv) messagesDiv.innerHTML = '';
+                if (win._chatMessages) win._chatMessages = [];
+            }
+        });
+        if (typeof chatMsgs !== 'undefined') chatMsgs = [];
+    });
+    
+    // Подключение к чату
+    window.socket.on('connect', () => {
+        console.log('✅ Чат подключён к серверу');
+        if (currentUsername) {
+            window.socket.emit('user_online', currentUsername);
+        }
+    });
+}
         // Удаляем старые обработчики
         window.socket.off('chat_history');
         window.socket.off('chat_message');
