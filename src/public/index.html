@@ -1708,18 +1708,6 @@ function addLog(msg, type = 'info') {
         }
     });
     
-    // ОБНОВЛЯЕМ ТЕРМИНАЛ
-    document.querySelectorAll('.terminal-content').forEach(t => {
-        if (t) {
-            let html = '';
-            for (let i = globalLogs.length - 1; i >= 0; i--) {
-                let l = globalLogs[i];
-                html += `<div class="log-entry ${l.type}">[${l.time}] ${l.msg}</div>`;
-            }
-            t.innerHTML = html;
-        }
-    });
-    
     console.log(`[${type}] ${msg}`);
 }
     const entry = { time: new Date().toLocaleTimeString(), msg: msg, type: type };
