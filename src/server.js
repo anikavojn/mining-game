@@ -542,6 +542,7 @@ app.post('/api/game/save', auth, async (req, res) => {
             pool_bonus: data.poolBonus || 0,
             pvp_bonus: data.pvpBonus || 0,
             oc: data.oc || false,
+            mining: data.mining || false,
             max_energy: data.maxEnergy || 100,
             // Сохраняем все сложные данные как JSON
             inv: data.inv || { cpu_miner: 1 },
