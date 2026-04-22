@@ -16,6 +16,62 @@ router.get('/profile', auth, async (req, res) => {
     }
 });
 
+// ЗАГРУЗКА ИГРОВЫХ ДАННЫХ (для восстановления прогресса)
+router.get('/load', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId).select('-password');
+        if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+        if (user.isBanned) return res.status(403).json({ error: 'Аккаунт заблокирован' });
+        
+        // Собираем все игровые данные из полей пользователя
+        const save_data = {
+            balance: user.balance || 0,
+            chips: user.chips || 0,
+            energy: user.energy || 100,
+            maxEnergy: user.maxEnergy || 100,
+            basePower: user.basePower || 2,
+            voltage: user.voltage || 11.8,
+            mining: user.mining || false,
+            oc: user.oc || false,
+            shares: user.shares || 0,
+            blocks: user.blocks || 0,
+            totalShares: user.totalShares || 0,
+            totalBlocks: user.totalBlocks || 0,
+            totalEarned: user.totalEarned || 0,
+            miningEarned: user.miningEarned || 0,
+            equipmentDamage: user.equipmentDamage || 0,
+            inv: user.inv || { "cpu_miner": 1 },
+            research: user.research || { gpu: false, asic: false, highEnd: false, industrial: false },
+            dust: user.dust || 0,
+            solar: user.solar || 0,
+            powerBank: user.powerBank || 0,
+            defense: user.defense || 30,
+            antivirus: user.antivirus || 1,
+            firewall: user.firewall || false,
+            stolen: user.stolen || 0,
+            inPool: user.inPool || false,
+            poolBonus: user.poolBonus || 0,
+            pvpBonus: user.pvpBonus || 0,
+            buffs: user.buffs || { hash: 1, luck: 1 },
+            cooling: user.cooling || { fan: 65, pump: 50, water: 30 },
+            wiringFaults: user.wiringFaults || [false, false, false, false, false, false],
+            ach: user.ach || { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false },
+            researchTimers: user.researchTimers || {},
+            researchCompleted: user.researchCompleted || {},
+            totalGameTime: user.totalGameTime || 0,
+            totalMiningTime: user.totalMiningTime || 0
+        };
+        
+        res.json({ 
+            success: true, 
+            save_data,
+            username: user.username
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ОБНОВЛЕНИЕ ИГРОВЫХ ДАННЫХ (сохранение прогресса)
 router.post('/save', auth, async (req, res) => {
     try {
@@ -25,7 +81,9 @@ router.post('/save', auth, async (req, res) => {
             'mining', 'oc', 'shares', 'blocks', 'totalShares', 'totalBlocks',
             'totalEarned', 'miningEarned', 'defense', 'equipmentDamage', 'chipsMined',
             'inv', 'research', 'researchTimers', 'researchCompleted', 'wiringFaults',
-            'dust', 'solar', 'powerBank', 'lastActive'
+            'dust', 'solar', 'powerBank', 'antivirus', 'firewall', 'stolen',
+            'inPool', 'poolBonus', 'pvpBonus', 'buffs', 'cooling', 'ach',
+            'totalGameTime', 'totalMiningTime', 'lastActive'
         ];
         
         const filteredUpdate = {};

@@ -583,7 +583,7 @@ app.get('/api/game/load', auth, async (req, res) => {
     try {
         const { data: user, error } = await supabase
             .from('users')
-            .select('save_data, balance, chips, base_power, inv, energy, defense, pvp_bonus, wiring_faults, cooling, buffs, research, ach, total_game_time, total_mining_time, research_timers, research_completed')
+            .select('username, save_data, balance, chips, base_power, inv, energy, defense, pvp_bonus, wiring_faults, cooling, buffs, research, ach, total_game_time, total_mining_time, research_timers, research_completed')
             .eq('id', req.userId)
             .single();
         
@@ -612,7 +612,7 @@ app.get('/api/game/load', auth, async (req, res) => {
             };
         }
         
-        res.json({ success: true, save_data: saveData });
+        res.json({ success: true, save_data: saveData, username: user.username });
     } catch (err) {
         console.error('Load error:', err);
         res.status(500).json({ error: err.message });
