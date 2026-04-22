@@ -2142,8 +2142,14 @@ function initTasks() {
 async function initGame() {
     console.log('🚀 Инициализация игры...');
     
+    // Сначала инициализируем имя пользователя (для чата и профиля)
+    await initChatUsername();
+    
     // Загружаем прогресс с сервера
     await loadGameFromServer();
+    
+    // Обновляем отображение имени в профиле после загрузки
+    updateProfileDisplay();
     
     // Загружаем локальный сейв (как резерв, если на сервере пусто)
     loadGame();
@@ -2176,7 +2182,7 @@ async function initGame() {
     
     addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
     addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
-    console.log('✅ Игра инициализирована с серверным сохранением');
+    console.log('✅ Игра инициализирована с серверным сохранением, имя:', player.username);
 }
 
 // ЗАПУСКАЕМ ИГРУ
@@ -3644,13 +3650,40 @@ let chatMsgs = [];
 
 // ========== ПОДКЛЮЧЕНИЕ К CHAT SERVER ==========
 let currentUsername = null;
-const savedUserForChat = localStorage.getItem('mining_user');
-if (savedUserForChat) {
-    try {
-        const user = JSON.parse(savedUserForChat);
-        currentUsername = user.username;
-    } catch(e) {}
+
+// Сначала пробуем загрузить имя с сервера, потом из localStorage как фоллбэк
+async function initChatUsername() {
+    if (token) {
+        try {
+            const res = await fetch('/api/game/load', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (data.success && data.username) {
+                currentUsername = data.username;
+                player.username = data.username;
+                console.log('✅ Имя загружено с сервера:', currentUsername);
+                return;
+            }
+        } catch(e) {
+            console.error('Ошибка загрузки имени с сервера:', e);
+        }
+    }
+    
+    // Фоллбэк: localStorage
+    const savedUserForChat = localStorage.getItem('mining_user');
+    if (savedUserForChat) {
+        try {
+            const user = JSON.parse(savedUserForChat);
+            currentUsername = user.username;
+            player.username = user.username;
+            console.log('✅ Имя загружено из localStorage:', currentUsername);
+        } catch(e) {}
+    }
 }
+
+// Запускаем инициализацию имени перед подключением сокета
+initChatUsername();
 
 // Подключаем Socket.IO
 if (!window.socket) {
