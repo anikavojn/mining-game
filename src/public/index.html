@@ -2069,10 +2069,7 @@ async function initGame() {
     addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
     console.log('✅ Игра инициализирована с серверным сохранением');
 }
-
-// ЗАПУСКАЕМ ИГРУ
-initGame();
-    
+   
     // Сохраняем при закрытии страницы
     window.addEventListener('beforeunload', () => {
         saveGameToServer();
@@ -3611,7 +3608,7 @@ if (typeof socket !== 'undefined') {
             .catch(err => console.error('Ошибка загрузки настроек:', err));
     }, 1000);
 }
-   
+
     // Получение обновлений экономики от админа
     window.socket.on('force_reload', () => {
     location.reload();
@@ -5846,7 +5843,7 @@ async function loadUserProfile() {
     return false;
 }
 
-// 2. Загрузка ВСЕХ данных игрока (включая имя из базы)
+// 2. Загрузка ВСЕХ данных игрока (ЕДИНСТВЕННАЯ ФУНКЦИЯ)
 async function loadGameFromServer() {
     if (!token) {
         console.log('❌ Нет токена для загрузки');
@@ -6024,30 +6021,46 @@ function escapeHtml(str) {
     });
 }
 
-// 5. ЗАПУСК ЗАГРУЗКИ ПРИ СТАРТЕ
-setTimeout(async () => {
-    console.log('🔄 Загрузка данных...');
-    await loadUserProfile();
-    await loadGameFromServer();
-    console.log('🎮 Игра загружена, имя:', player.username);
+// 5. ЕДИНСТВЕННАЯ ФУНКЦИЯ initGame (исправленная)
+async function initGame() {
+    console.log('🚀 Инициализация игры...');
     
-    // Отправляем имя в чат
-    if (window.socket && window.currentUsername) {
-        window.socket.emit('user_online', window.currentUsername);
-    }
-}, 500);
+    // Сначала загружаем данные с сервера
+    await loadGameFromServer();
+    
+    // Инициализация всех систем
+    initTasks();
+    recalc();
+    renderRigs();
+    updateVoltage();
+    updateWeather();
+    updateCooling();
+    updateWiringDisplay();
+    startTraderSystem();
+    
+    // Запускаем интервалы
+    setInterval(updateWeather, 10000);
+    setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
+    setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
+    
+    addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
+    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
+    console.log('✅ Игра инициализирована, имя:', player.username);
+}
 
-// 6. АВТОСОХРАНЕНИЕ КАЖДЫЕ 30 СЕКУНД
+// 6. ЗАПУСКАЕМ ИГРУ (один раз!)
+initGame();
+
+// 7. АВТОСОХРАНЕНИЕ КАЖДЫЕ 30 СЕКУНД
 setInterval(() => {
     saveGameToServer();
 }, 30000);
 
-// 7. СОХРАНЕНИЕ ПРИ ЗАКРЫТИИ СТРАНИЦЫ
+// 8. СОХРАНЕНИЕ ПРИ ЗАКРЫТИИ СТРАНИЦЫ
 window.addEventListener('beforeunload', () => {
     saveGameToServer();
 });
 
 console.log('✅ Система сохранения/загрузки инициализирована');
 </script>
-
 </html>
