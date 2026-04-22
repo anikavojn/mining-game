@@ -512,41 +512,65 @@ app.get('/api/game/profile', auth, async (req, res) => {
     }
 });
 
-// Сохранить прогресс
-// Сохранить прогресс
+// Сохранить прогресс (ОДИН РАЗ)
+// Сохранить прогресс (ВСЕ данные)
 app.post('/api/game/save', auth, async (req, res) => {
     try {
         const data = req.body;
         
-        // Сохраняем ВСЕ данные в колонку save_data
+        // Обновляем все поля в таблице users
+        const updateData = {
+            balance: data.balance || 0,
+            chips: data.chips || 0,
+            energy: data.energy || 100,
+            base_power: data.basePower || 2,
+            voltage: data.voltage || 11.8,
+            shares: data.shares || 0,
+            blocks: data.blocks || 0,
+            total_shares: data.totalShares || 0,
+            total_blocks: data.totalBlocks || 0,
+            total_earned: data.totalEarned || 0,
+            mining_earned: data.miningEarned || 0,
+            equipment_damage: data.equipmentDamage || 0,
+            dust: data.dust || 0,
+            solar: data.solar || 0,
+            power_bank: data.powerBank || 0,
+            defense: data.defense || 30,
+            antivirus: data.antivirus || 1,
+            stolen: data.stolen || 0,
+            in_pool: data.inPool || false,
+            pool_bonus: data.poolBonus || 0,
+            pvp_bonus: data.pvpBonus || 0,
+            oc: data.oc || false,
+            max_energy: data.maxEnergy || 100,
+            // Сохраняем все сложные данные как JSON
+            inv: data.inv || { cpu_miner: 1 },
+            research: data.research || { gpu: false, asic: false, highEnd: false, industrial: false },
+            ach: data.ach || { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false },
+            buffs: data.buffs || { hash: 1, luck: 1 },
+            cooling: data.cooling || { fan: 65, pump: 50, water: 30 },
+            wiring_faults: data.wiringFaults || [false, false, false, false, false, false],
+            research_timers: data.researchTimers || {},
+            research_completed: data.researchCompleted || {},
+            total_game_time: data.totalGameTime || 0,
+            total_mining_time: data.totalMiningTime || 0,
+            // Сохраняем всё в JSONB поле для резерва
+            save_data: data,
+            last_active: new Date()
+        };
+        
         const { data: user, error } = await supabase
             .from('users')
-            .update({
-                balance: data.balance,
-                chips: data.chips,
-                energy: data.energy,
-                base_power: data.basePower,
-                shares: data.shares,
-                blocks: data.blocks,
-                total_shares: data.totalShares,
-                total_blocks: data.totalBlocks,
-                total_earned: data.totalEarned,
-                mining_earned: data.miningEarned,
-                equipment_damage: data.equipmentDamage,
-                inv: data.inv,
-                research: data.research,
-                dust: data.dust,
-                solar: data.solar,
-                power_bank: data.powerBank,
-                save_data: data,  // <-- ЭТО ГЛАВНОЕ! Сохраняем всё
-                last_active: new Date()
-            })
+            .update(updateData)
             .eq('id', req.userId)
             .select()
             .single();
         
         if (error) throw error;
+        
+        console.log(`💾 Сохранено для ${user.username}: баланс=${user.balance}, чипы=${user.chips}`);
         res.json({ success: true, user });
+        
     } catch (err) {
         console.error('Save error:', err);
         res.status(500).json({ error: err.message });
@@ -554,25 +578,84 @@ app.post('/api/game/save', auth, async (req, res) => {
 });
 
 // Загрузить прогресс
+// Загрузить прогресс
 app.get('/api/game/load', auth, async (req, res) => {
     try {
         const { data: user, error } = await supabase
             .from('users')
-            .select('save_data')
+            .select('save_data, balance, chips, base_power, inv, energy, defense, pvp_bonus, wiring_faults, cooling, buffs, research, ach, total_game_time, total_mining_time, research_timers, research_completed')
             .eq('id', req.userId)
             .single();
         
         if (error) throw error;
         
-        res.json({ 
-            success: true, 
-            save_data: user.save_data || null 
-        });
+        // Если есть save_data - отдаём его, иначе собираем из отдельных полей
+        let saveData = user.save_data;
+        if (!saveData) {
+            saveData = {
+                balance: user.balance || 0,
+                chips: user.chips || 0,
+                basePower: user.base_power || 2,
+                inv: user.inv || { cpu_miner: 1 },
+                energy: user.energy || 100,
+                defense: user.defense || 30,
+                pvpBonus: user.pvp_bonus || 0,
+                wiringFaults: user.wiring_faults || [false, false, false, false, false, false],
+                cooling: user.cooling || { fan: 65, pump: 50, water: 30 },
+                buffs: user.buffs || { hash: 1, luck: 1 },
+                research: user.research || { gpu: false, asic: false, highEnd: false, industrial: false },
+                ach: user.ach || { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false },
+                totalGameTime: user.total_game_time || 0,
+                totalMiningTime: user.total_mining_time || 0,
+                researchTimers: user.research_timers || {},
+                researchCompleted: user.research_completed || {}
+            };
+        }
+        
+        res.json({ success: true, save_data: saveData });
     } catch (err) {
         console.error('Load error:', err);
         res.status(500).json({ error: err.message });
     }
 });
+
+// Создание всех необходимых колонок
+async function ensureAllColumns() {
+    const columns = [
+        { name: 'save_data', type: 'JSONB' },
+        { name: 'pvp_bonus', type: 'BIGINT DEFAULT 0' },
+        { name: 'wiring_faults', type: 'JSONB DEFAULT \'[false,false,false,false,false,false]\'' },
+        { name: 'cooling', type: 'JSONB DEFAULT \'{"fan":65,"pump":50,"water":30}\'' },
+        { name: 'buffs', type: 'JSONB DEFAULT \'{"hash":1,"luck":1}\'' },
+        { name: 'ach', type: 'JSONB DEFAULT \'{"firstShare":false,"firstBlock":false,"rich":false,"overclocker":false,"miner":false}\'' },
+        { name: 'in_pool', type: 'BOOLEAN DEFAULT FALSE' },
+        { name: 'pool_bonus', type: 'INTEGER DEFAULT 0' },
+        { name: 'oc', type: 'BOOLEAN DEFAULT FALSE' },
+        { name: 'max_energy', type: 'INTEGER DEFAULT 100' },
+        { name: 'total_game_time', type: 'BIGINT DEFAULT 0' },
+        { name: 'total_mining_time', type: 'BIGINT DEFAULT 0' },
+        { name: 'research_timers', type: 'JSONB DEFAULT \'{}\'' },
+        { name: 'research_completed', type: 'JSONB DEFAULT \'{}\'' }
+    ];
+    
+    for (const col of columns) {
+        try {
+            const { error } = await supabase.rpc('exec_sql', {
+                sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col.name} ${col.type};`
+            });
+            if (error) {
+                console.log(`⚠️ Не удалось добавить ${col.name}:`, error.message);
+            } else {
+                console.log(`✅ Колонка ${col.name} проверена/создана`);
+            }
+        } catch (err) {
+            console.log(`⚠️ Ошибка с колонкой ${col.name}:`, err.message);
+        }
+    }
+}
+
+// Вызываем после подключения к БД
+ensureAllColumns();
 
 // Пополнение
 app.post('/api/game/deposit', auth, async (req, res) => {
