@@ -2148,17 +2148,17 @@ function initTasks() {
 async function initGame() {
     console.log('🚀 Инициализация игры...');
     
-    // Сначала инициализируем имя пользователя (для чата и профиля)
-    await initChatUsername();
+    // Загружаем прогресс с сервера (включая имя)
+    const loadedFromServer = await loadGameFromServer();
     
-    // Загружаем прогресс с сервера
-    await loadGameFromServer();
+    // Если с сервера не загрузилось, пробуем локальное сохранение
+    if (!loadedFromServer) {
+        loadGame();
+    }
     
-    // Обновляем отображение имени в профиле после загрузки
+    // Обновляем отображение имени в профиле и чате после загрузки
     updateProfileDisplay();
-    
-    // Загружаем локальный сейв (как резерв, если на сервере пусто)
-    loadGame();
+    currentUsername = player.username; // Синхронизируем имя для чата
     
     // Инициализация всех систем
     initTasks();
