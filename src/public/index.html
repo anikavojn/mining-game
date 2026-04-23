@@ -3682,8 +3682,8 @@ async function initChatUsername() {
     }
 }
 
-// Запускаем инициализацию имени перед подключением сокета
-initChatUsername();
+// Запускаем инициализацию имени ПЕРЕД подключением сокета
+// Вызов перенесен в initGame() для правильного порядка инициализации
 
 // Подключаем Socket.IO
 if (!window.socket) {
@@ -6024,7 +6024,8 @@ async function saveGameToServer() {
         researchTimers: player.researchTimers || {},
         researchCompleted: player.researchCompleted || {},
         totalGameTime: window.gameActiveTime || 0,
-        totalMiningTime: player.miningTime || 0
+        totalMiningTime: player.miningTime || 0,
+        username: player.username || "MINER_747"
     };
     
     try {

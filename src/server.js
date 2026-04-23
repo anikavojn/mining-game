@@ -583,14 +583,14 @@ app.get('/api/game/load', auth, async (req, res) => {
     try {
         const { data: user, error } = await supabase
             .from('users')
-            .select('username, save_data, balance, chips, base_power, inv, energy, defense, pvp_bonus, wiring_faults, cooling, buffs, research, ach, total_game_time, total_mining_time, research_timers, research_completed')
+            .select('username, save_data, balance, chips, base_power, inv, energy, defense, pvp_bonus, wiring_faults, cooling, buffs, research, ach, total_game_time, total_mining_time, research_timers, research_completed, oc, max_energy, voltage, mining, shares, blocks, total_shares, total_blocks, total_earned, mining_earned, equipment_damage, dust, solar, power_bank, antivirus, stolen, in_pool, pool_bonus, firewall')
             .eq('id', req.userId)
             .single();
         
         if (error) throw error;
         
-        // Если есть save_data - отдаём его, иначе собираем из отдельных полей
         let saveData = user.save_data;
+        // Если есть save_data - отдаём его, иначе собираем из отдельных полей
         if (!saveData) {
             saveData = {
                 balance: user.balance || 0,
@@ -598,7 +598,26 @@ app.get('/api/game/load', auth, async (req, res) => {
                 basePower: user.base_power || 2,
                 inv: user.inv || { cpu_miner: 1 },
                 energy: user.energy || 100,
+                maxEnergy: user.max_energy || 100,
+                voltage: user.voltage || 11.8,
+                mining: user.mining || false,
+                oc: user.oc || false,
+                shares: user.shares || 0,
+                blocks: user.blocks || 0,
+                totalShares: user.total_shares || 0,
+                totalBlocks: user.total_blocks || 0,
+                totalEarned: user.total_earned || 0,
+                miningEarned: user.mining_earned || 0,
+                equipmentDamage: user.equipment_damage || 0,
+                dust: user.dust || 0,
+                solar: user.solar || 0,
+                powerBank: user.power_bank || 0,
                 defense: user.defense || 30,
+                antivirus: user.antivirus || 1,
+                firewall: user.firewall || false,
+                stolen: user.stolen || 0,
+                inPool: user.in_pool || false,
+                poolBonus: user.pool_bonus || 0,
                 pvpBonus: user.pvp_bonus || 0,
                 wiringFaults: user.wiring_faults || [false, false, false, false, false, false],
                 cooling: user.cooling || { fan: 65, pump: 50, water: 30 },
@@ -609,6 +628,45 @@ app.get('/api/game/load', auth, async (req, res) => {
                 totalMiningTime: user.total_mining_time || 0,
                 researchTimers: user.research_timers || {},
                 researchCompleted: user.research_completed || {}
+            };
+        } else {
+            // Дополняем save_data недостающими полями из основных колонок
+            saveData = {
+                balance: saveData.balance ?? user.balance || 0,
+                chips: saveData.chips ?? user.chips || 0,
+                basePower: saveData.basePower ?? user.base_power || 2,
+                energy: saveData.energy ?? user.energy || 100,
+                maxEnergy: saveData.maxEnergy ?? user.max_energy || 100,
+                voltage: saveData.voltage ?? user.voltage || 11.8,
+                mining: saveData.mining ?? user.mining || false,
+                oc: saveData.oc ?? user.oc || false,
+                shares: saveData.shares ?? user.shares || 0,
+                blocks: saveData.blocks ?? user.blocks || 0,
+                totalShares: saveData.totalShares ?? user.total_shares || 0,
+                totalBlocks: saveData.totalBlocks ?? user.total_blocks || 0,
+                totalEarned: saveData.totalEarned ?? user.total_earned || 0,
+                miningEarned: saveData.miningEarned ?? user.mining_earned || 0,
+                equipmentDamage: saveData.equipmentDamage ?? user.equipment_damage || 0,
+                dust: saveData.dust ?? user.dust || 0,
+                solar: saveData.solar ?? user.solar || 0,
+                powerBank: saveData.powerBank ?? user.power_bank || 0,
+                defense: saveData.defense ?? user.defense || 30,
+                antivirus: saveData.antivirus ?? user.antivirus || 1,
+                firewall: saveData.firewall ?? user.firewall || false,
+                stolen: saveData.stolen ?? user.stolen || 0,
+                inPool: saveData.inPool ?? user.in_pool || false,
+                poolBonus: saveData.poolBonus ?? user.pool_bonus || 0,
+                pvpBonus: saveData.pvpBonus ?? user.pvp_bonus || 0,
+                wiringFaults: saveData.wiringFaults ?? user.wiring_faults || [false, false, false, false, false, false],
+                cooling: saveData.cooling ?? user.cooling || { fan: 65, pump: 50, water: 30 },
+                buffs: saveData.buffs ?? user.buffs || { hash: 1, luck: 1 },
+                research: saveData.research ?? user.research || { gpu: false, asic: false, highEnd: false, industrial: false },
+                ach: saveData.ach ?? user.ach || { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false },
+                totalGameTime: saveData.totalGameTime ?? user.total_game_time || 0,
+                totalMiningTime: saveData.totalMiningTime ?? user.total_mining_time || 0,
+                researchTimers: saveData.researchTimers ?? user.research_timers || {},
+                researchCompleted: saveData.researchCompleted ?? user.research_completed || {},
+                inv: saveData.inv ?? user.inv || { cpu_miner: 1 }
             };
         }
         
