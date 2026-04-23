@@ -2122,18 +2122,7 @@ function initTasks() {
     ];
     taskRefreshTime = Date.now() + 1800000;
 
-// В функции init() или после загрузки профиля
-async function initGame() {
-    // Сначала загружаем профиль пользователя
-    await loadUserProfile();
-    
-    // Затем загружаем прогресс с сервера
-    await loadGameFromServer();
-    
-    // Загружаем локальный сейв (как резерв)
-    loadGame();
-    
-    // ========== НОВАЯ ИНИЦИАЛИЗАЦИЯ С СЕРВЕРНЫМ СОХРАНЕНИЕМ ==========
+// ========== ИНИЦИАЛИЗАЦИЯ ИГРЫ ==========
 async function initGame() {
     console.log('🚀 Инициализация игры...');
     
@@ -2162,10 +2151,10 @@ async function initGame() {
     setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
     
     // ========== АВТОСОХРАНЕНИЕ НА СЕРВЕР ==========
-    // Каждые 30 секунд
+    // Каждые 3 секунды
     setInterval(() => {
         saveGameToServer();
-    }, 30000);
+    }, 3000);
     
     // При закрытии страницы
     window.addEventListener('beforeunload', () => {
@@ -2173,25 +2162,12 @@ async function initGame() {
     });
     
     addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
-    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
-    console.log('✅ Игра инициализирована с серверным сохранением');
+    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 3 секунды', 'success');
+    console.log('✅ Игра инициализирована с серверным сохранением, имя:', player.username);
 }
 
 // ЗАПУСКАЕМ ИГРУ
 initGame();
-    
-    // Сохраняем при закрытии страницы
-    window.addEventListener('beforeunload', () => {
-        saveGameToServer();
-    });
-    
-    console.log('✅ Игра инициализирована с серверным сохранением');
-}
-
-// Вызываем initGame вместо старой инициализации
-initGame();
-
-}
 
 function updateTasksUI() {
     let container = document.getElementById('tasksWindowContent');
@@ -6076,7 +6052,24 @@ async function loadGameFromServer() {
             const ocCheckbox = document.getElementById('overclock');
             if (ocCheckbox) ocCheckbox.checked = player.oc;
             
-            console.log('✅ Загружено с сервера:', player.balance, 'SOL,', player.chips, 'чипов');
+            // ========== ОБНОВЛЯЕМ ИМЯ В ИНТЕРФЕЙСЕ ==========
+            if (data.username) {
+                player.username = data.username;
+                currentUsername = data.username;
+                
+                const usernameSpan = document.getElementById('profileUsername');
+                if (usernameSpan) {
+                    usernameSpan.innerText = data.username;
+                }
+                
+                const profileBtn = document.getElementById('profileBtn');
+                if (profileBtn) {
+                    profileBtn.innerHTML = `<span></span> <span id="profileUsername">${data.username}</span> <span>▼</span>`;
+                }
+            }
+            // ================================================
+            
+            console.log('✅ Загружено с сервера:', player.balance, 'SOL,', player.chips, 'чипов, имя:', player.username);
             
             // Обновляем UI
             if (typeof updateUI === 'function') updateUI();
