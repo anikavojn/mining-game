@@ -3,13 +3,6 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>    
-<script>
-// Просто проверяем токен при загрузке игры
-
-if (!token) {
-    window.location.href = '/login.html';
-}
-</script>
     <meta charset="UTF-8">
     <title>Mining Simulator 747 — Hardcore Edition</title>
     <style>
@@ -2191,6 +2184,110 @@ async function initGame() {
     console.log('✅ Игра инициализирована с серверным сохранением, имя:', player.username);
 }
 
+// ========== СОХРАНЕНИЕ НА СЕРВЕРЕ (ЕДИНСТВЕННАЯ ВЕРСИЯ) ==========
+
+const token = localStorage.getItem('mining_token');
+
+// Проверка токена перед запуском игры
+if (!token) {
+    window.location.href = '/login.html';
+}
+
+// Функция сохранения в localStorage (резервная)
+function saveGame() {
+    // Резервное сохранение не требуется, так как всё сохраняется на сервере
+    console.log('💾 Резервное сохранение (серверное активное)');
+}
+
+// Функция загрузки из localStorage (резервная, если сервер недоступен)
+function loadGame() {
+    console.log('⚠️ Загрузка из localStorage отключена - используется только сервер');
+    // Не загружаем из localStorage, чтобы избежать конфликта с серверными данными
+}
+
+// Сохранение ВСЕХ данных игрока
+async function saveGameToServer() {
+    if (!token) {
+        console.log('❌ Нет токена для сохранения');
+        return false;
+    }
+    
+    const saveData = {
+        balance: player.balance,
+        totalBlocks: player.totalBlocks,
+        blocksPerSecond: player.blocksPerSecond,
+        voltage: player.voltage,
+        fanSpeed: player.fanSpeed,
+        oc: player.oc,
+        cooling: player.cooling,
+        rigs: player.rigs,
+        achievements: player.achievements,
+        stats: player.stats,
+        username: player.username,
+        mining: player.mining,
+        adminSettings: player.adminSettings
+    };
+    
+    try {
+        const response = await fetch('/api/game/save', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(saveData)
+        });
+        
+        if (response.ok) {
+            console.log('💾 Игра сохранена на сервере');
+            return true;
+        } else {
+            console.error('❌ Ошибка сохранения на сервере:', response.status);
+            return false;
+        }
+    } catch (err) {
+        console.error('❌ Ошибка соединения при сохранении:', err);
+        return false;
+    }
+}
+
+// Загрузка всех данных игрока с сервера
+async function loadGameFromServer() {
+    if (!token) return false;
+    
+    try {
+        const response = await fetch('/api/game/load', {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) return false;
+        
+        const data = await response.json();
+        
+        // Обновляем все данные игрока
+        player.balance = data.balance ?? 0;
+        player.totalBlocks = data.totalBlocks ?? 0;
+        player.blocksPerSecond = data.blocksPerSecond ?? 0;
+        player.voltage = data.voltage ?? 12.0;
+        player.fanSpeed = data.fanSpeed ?? 50;
+        player.oc = data.oc ?? false;
+        player.cooling = data.cooling ?? { fan: 50, paste: 100, water: 0 };
+        player.rigs = data.rigs ?? [];
+        player.achievements = data.achievements ?? [];
+        player.stats = data.stats ?? { playTime: 0, blocksMined: 0, eventsSurvived: 0 };
+        player.username = data.username || player.username;
+        player.mining = data.mining ?? false;
+        player.adminSettings = data.adminSettings ?? { godMode: false, infiniteMoney: false };
+        
+        console.log('✅ Загружено с сервера:', player.username, player.balance);
+        return true;
+    } catch (err) {
+        console.error('❌ Ошибка загрузки с сервера:', err);
+        return false;
+    }
+}
+
 // ЗАПУСКАЕМ ИГРУ
 initGame();
 </script>
@@ -2215,8 +2312,20 @@ function updateTasksUI() {
 }
 
 function openTasksWindow() {
-    let win = createWin('📋 АКТИВНЫЕ ЗАДАНИЯ', '<div id="tasksWindowContent"></div>', 380, 400, 200, 150);
-    updateTasksUI();
+    if (player.basePower < 50) return;
+    if (currentMicroEvent) return;
+    let ev = microEvents[Math.floor(Math.random() * microEvents.length)];
+    currentMicroEvent = ev;
+    toast(`⚠️ ${ev.name} ${ev.action}`);
+    addLog(`⚠️ МИКРОСОБЫТИЕ: ${ev.name} - ${ev.action}`, 'warning');
+    if (microEventTimeout) clearTimeout(microEventTimeout);
+    microEventTimeout = setTimeout(() => {
+        if (currentMicroEvent === ev) {
+            currentMicroEvent = null;
+            toast(`⏰ Время вышло! Штраф -3 чипа`);
+            player.chips = Math.max(0, player.chips - 3);
+        }
+    }, 15000);
 }
 
 let currentMicroEvent = null;
@@ -2232,20 +2341,7 @@ const microEvents = [
 
 function triggerMicroEvent() {
     if (!player.mining) return;
-    if (player.basePower < 50) return;
-    if (currentMicroEvent) return;
-    let ev = microEvents[Math.floor(Math.random() * microEvents.length)];
-    currentMicroEvent = ev;
-    toast(`⚠️ ${ev.name} ${ev.action}`);
-    addLog(`⚠️ МИКРОСОБЫТИЕ: ${ev.name} - ${ev.action}`, 'warning');
-    if (microEventTimeout) clearTimeout(microEventTimeout);
-    microEventTimeout = setTimeout(() => {
-        if (currentMicroEvent === ev) {
-            currentMicroEvent = null;
-            toast(`⏰ Время вышло! Штраф -3 чипа`);
-            player.chips = Math.max(0, player.chips - 3);
-        }
-    }, 15000);
+    openTasksWindow();
 }
 
 function checkMicroEvent() {
