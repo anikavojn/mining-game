@@ -1,17 +1,46 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>    
-<script>
-// Просто проверяем токен при загрузке игры
-
-if (!token) {
-    window.location.href = '/login.html';
-}
-</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // Объявляем токен сразу при загрузке
+        const token = localStorage.getItem('mining_token');
+        
+        // Проверяем токен при загрузке игры
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+    </script>
     <meta charset="UTF-8">
     <title>Mining Simulator 747 — Hardcore Edition</title>
+</head>
+<body>
+    <!-- ЭКРАН ЗАГРУЗКИ -->
+    <div id="loadingScreen" style="
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: #0a0c10;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        font-family: 'Courier New', monospace;
+    ">
+        <div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 20px;">⛏️</div>
+            <div style="font-size: 24px; color: #ffaa66; font-weight: bold;">MINING SIMULATOR 747</div>
+            <div style="font-size: 14px; color: #88aaff; margin-top: 20px;">Загрузка данных с сервера...</div>
+            <div style="margin-top: 15px;">
+                <div style="width: 200px; height: 4px; background: #1a2a3a; border-radius: 4px; overflow: hidden; margin: 0 auto;">
+                    <div id="loadingBar" style="width: 0%; height: 100%; background: #ffaa66; transition: width 0.3s;"></div>
+                </div>
+            </div>
+            <div id="loadingStatus" style="font-size: 12px; color: #666; margin-top: 10px;">Инициализация...</div>
+        </div>
+    </div>
+    
     <style>
         /* ========== ВСЕ СТИЛИ ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2079,6 +2108,7 @@ window.triggerBonus = () => {
 };
 
 function recalc() {
+    if (!window.gameReady) return;  // Ждём загрузки данных
     let total = 0;
     for (let [id, c] of Object.entries(player.inv)) {
         if (rigs[id]?.h) total += rigs[id].h * c;
@@ -2123,30 +2153,67 @@ function initTasks() {
     taskRefreshTime = Date.now() + 1800000;
 
 // В функции init() или после загрузки профиля
-async function initGame() {
-    // Сначала загружаем профиль пользователя
+// Глобальная функция загрузки всех данных
+async function loadAllGameData() {
+    const loadingBar = document.getElementById('loadingBar');
+    const loadingStatus = document.getElementById('loadingStatus');
+    
+    if (loadingStatus) loadingStatus.innerText = 'Загрузка профиля...';
+    if (loadingBar) loadingBar.style.width = '30%';
+    
     await loadUserProfile();
     
-    // Затем загружаем прогресс с сервера
+    if (loadingStatus) loadingStatus.innerText = 'Загрузка прогресса...';
+    if (loadingBar) loadingBar.style.width = '60%';
+    
     await loadGameFromServer();
     
-    // Загружаем локальный сейв (как резерв)
+    if (loadingStatus) loadingStatus.innerText = 'Инициализация систем...';
+    if (loadingBar) loadingBar.style.width = '80%';
+    
+    // Загружаем локальный сейв как резерв
     loadGame();
     
-    // ========== НОВАЯ ИНИЦИАЛИЗАЦИЯ С СЕРВЕРНЫМ СОХРАНЕНИЕМ ==========
+    if (loadingBar) loadingBar.style.width = '100%';
+    
+    // Обновляем весь UI после загрузки данных
+    refreshAllUI();
+    
+    // Скрываем экран загрузки
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.style.transition = 'opacity 0.5s';
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => loadingScreen.remove(), 500);
+    }
+    
+    // Помечаем игру как готовую
+    window.gameReady = true;
+    console.log('✅ Игра полностью загружена и готова к работе');
+}
+
+
+// Функция обновления всего UI после загрузки данных
+function refreshAllUI() {
+    updateUI();
+    updateProfileDisplay();
+    updateBalanceDisplay();
+    if (typeof renderRigs === 'function') renderRigs();
+    if (typeof updateVoltage === 'function') updateVoltage();
+    if (typeof updateWeather === 'function') updateWeather();
+    if (typeof updateCooling === 'function') updateCooling();
+    if (typeof updateWiringDisplay === 'function') updateWiringDisplay();
+    console.log('🔄 UI обновлён с загруженными данными');
+}
+
+// Исправленная функция инициализации
 async function initGame() {
     console.log('🚀 Инициализация игры...');
     
-    // Загружаем профиль пользователя
-    await loadUserProfile();
+    // Сначала загружаем все данные
+    await loadAllGameData();
     
-    // Загружаем прогресс с сервера
-    await loadGameFromServer();
-    
-    // Загружаем локальный сейв (как резерв, если на сервере пусто)
-    loadGame();
-    
-    // Инициализация всех систем
+    // ТОЛЬКО ПОСЛЕ ЗАГРУЗКИ инициализируем системы
     initTasks();
     recalc();
     renderRigs();
@@ -2161,11 +2228,10 @@ async function initGame() {
     setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
     setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
     
-    // ========== АВТОСОХРАНЕНИЕ НА СЕРВЕР ==========
-    // Каждые 30 секунд
+    // Автосохранение на сервер каждые 3 секунды
     setInterval(() => {
         saveGameToServer();
-    }, 30000);
+    }, 3000);
     
     // При закрытии страницы
     window.addEventListener('beforeunload', () => {
@@ -2173,23 +2239,19 @@ async function initGame() {
     });
     
     addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
-    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
-    console.log('✅ Игра инициализирована с серверным сохранением');
+    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 3 секунды', 'success');
+    console.log('✅ Игра инициализирована с серверным сохранением, имя:', player.username);
 }
 
-// ЗАПУСКАЕМ ИГРУ
-initGame();
     
-    // Сохраняем при закрытии страницы
-    window.addEventListener('beforeunload', () => {
-        saveGameToServer();
-    });
-    
-    console.log('✅ Игра инициализирована с серверным сохранением');
-}
+    // ========== НОВАЯ ИНИЦИАЛИЗАЦИЯ С СЕРВЕРНЫМ СОХРАНЕНИЕМ ==========
 
-// Вызываем initGame вместо старой инициализации
-initGame();
+
+
+    
+    
+
+
 
 }
 
@@ -2266,6 +2328,7 @@ function checkMicroEvent() {
 let lastVoltageDriftTime = 0;
 
 function updateSim() {
+    if (!window.gameReady) return;  // Ждём загрузки данных
     // ========== ОТСЛЕЖИВАНИЕ ВРЕМЕНИ МАЙНИНГА (В НАЧАЛЕ) ==========
     let now = Date.now();
     if (player.mining && player.energy > 0) {
@@ -2749,6 +2812,7 @@ coolEff = Math.min(1.0, coolEff + coolingGearBonus);
 }
 
 function updateUI() {
+    if (!window.gameReady) return;  // Ждём загрузки данных
     let cpuP = player.mining ? Math.min(100, player.hashPower / 300 * 100) : 2;
     let gpuP = player.mining ? Math.min(100, player.hashPower / 280 * 100) : 1;
     let ramP = Math.min(100, 30 + player.basePower / 400 * 30);
@@ -6108,12 +6172,14 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-// Загружаем игру после полной инициализации страницы
-setTimeout(() => {
-    loadGameFromServer().then(() => {
-        console.log('🎮 Игра загружена, прогресс восстановлен');
-    });
-}, 500);
+
+// Запускаем игру после полной загрузки страницы
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        initGame();
+    }, 100);
+});
+
 </script>
 
 </html>
