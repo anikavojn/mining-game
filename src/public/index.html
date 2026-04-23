@@ -5998,7 +5998,7 @@ fetch('/api/admin/balance')
 
 // ========== СОХРАНЕНИЕ НА СЕРВЕРЕ (ЕДИНСТВЕННАЯ ВЕРСИЯ) ==========
 
-const token = localStorage.getItem('mining_token');
+// Токен уже объявлен глобально в начале файла (строка 8), здесь не объявляем повторно
 
 // Сохранение ВСЕХ данных игрока
 async function saveGameToServer() {
