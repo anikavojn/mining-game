@@ -1736,10 +1736,6 @@ async function loadGameFromServer() {
                 usernameSpan.innerText = data.user.username;
             }
             
-            const profileBtn = document.getElementById('profileBtn');
-            if (profileBtn && data.user.username) {
-                profileBtn.innerHTML = `<span></span> <span id="profileUsername">${data.user.username}</span> <span>▼</span>`;
-            }
             
             if (data.user.save_data) {
                 const saved = data.user.save_data;
