@@ -5956,6 +5956,7 @@ async function saveGameToServer() {
     }
     
     const saveData = {
+        username: player.username || localStorage.getItem('mining_username') || 'MINER_747',
         balance: player.balance || 0,
         chips: player.chips || 0,
         energy: player.energy || 100,
