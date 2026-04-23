@@ -2124,6 +2124,17 @@ function initTasks() {
 
 // В функции init() или после загрузки профиля
 async function initGame() {
+    // Сначала загружаем профиль пользователя
+    await loadUserProfile();
+    
+    // Затем загружаем прогресс с сервера
+    await loadGameFromServer();
+    
+    // Загружаем локальный сейв (как резерв)
+    loadGame();
+    
+    // ========== НОВАЯ ИНИЦИАЛИЗАЦИЯ С СЕРВЕРНЫМ СОХРАНЕНИЕМ ==========
+async function initGame() {
     console.log('🚀 Инициализация игры...');
     
     // Загружаем профиль пользователя
@@ -2168,6 +2179,19 @@ async function initGame() {
 
 // ЗАПУСКАЕМ ИГРУ
 initGame();
+    
+    // Сохраняем при закрытии страницы
+    window.addEventListener('beforeunload', () => {
+        saveGameToServer();
+    });
+    
+    console.log('✅ Игра инициализирована с серверным сохранением');
+}
+
+// Вызываем initGame вместо старой инициализации
+initGame();
+
+}
 
 function updateTasksUI() {
     let container = document.getElementById('tasksWindowContent');
