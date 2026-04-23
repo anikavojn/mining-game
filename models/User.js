@@ -40,6 +40,10 @@ const userSchema = new mongoose.Schema({
     ach: { type: Object, default: { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false } },
     totalGameTime: { type: Number, default: 0 },
     totalMiningTime: { type: Number, default: 0 },
+    isAdmin: { type: Boolean, default: false },
+    adminSettings: { type: Object, default: {} },
+    gameSettings: { type: Object, default: {} },
+    statistics: { type: Object, default: {} },
     isBanned: { type: Boolean, default: false },
     lastActive: { type: Date, default: Date.now },
     createdAt: { type: Date, default: Date.now }

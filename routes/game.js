@@ -59,13 +59,18 @@ router.get('/load', auth, async (req, res) => {
             researchTimers: user.researchTimers || {},
             researchCompleted: user.researchCompleted || {},
             totalGameTime: user.totalGameTime || 0,
-            totalMiningTime: user.totalMiningTime || 0
+            totalMiningTime: user.totalMiningTime || 0,
+            isAdmin: user.isAdmin || false,
+            adminSettings: user.adminSettings || {},
+            gameSettings: user.gameSettings || {},
+            statistics: user.statistics || {}
         };
         
         res.json({ 
             success: true, 
             save_data,
-            username: user.username
+            username: user.username,
+            isAdmin: user.isAdmin
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -83,7 +88,8 @@ router.post('/save', auth, async (req, res) => {
             'inv', 'research', 'researchTimers', 'researchCompleted', 'wiringFaults',
             'dust', 'solar', 'powerBank', 'antivirus', 'firewall', 'stolen',
             'inPool', 'poolBonus', 'pvpBonus', 'buffs', 'cooling', 'ach',
-            'totalGameTime', 'totalMiningTime', 'lastActive'
+            'totalGameTime', 'totalMiningTime', 'lastActive',
+            'isAdmin', 'adminSettings', 'gameSettings', 'statistics'
         ];
         
         const filteredUpdate = {};

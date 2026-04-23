@@ -1780,6 +1780,12 @@ async function loadGameFromServer() {
             player.researchCompleted = saved.researchCompleted || {};
             player.miningEarned = saved.miningEarned ?? 0;
             
+            // Загружаем настройки админа и статистику
+            player.isAdmin = data.isAdmin ?? false;
+            player.adminSettings = saved.adminSettings ?? {};
+            player.gameSettings = saved.gameSettings ?? {};
+            player.statistics = saved.statistics ?? {};
+            
             window.gameActiveTime = saved.totalGameTime ?? 0;
             player.miningTime = saved.totalMiningTime ?? 0;
             
@@ -6025,7 +6031,11 @@ async function saveGameToServer() {
         researchCompleted: player.researchCompleted || {},
         totalGameTime: window.gameActiveTime || 0,
         totalMiningTime: player.miningTime || 0,
-        username: player.username || "MINER_747"
+        username: player.username || "MINER_747",
+        isAdmin: player.isAdmin || false,
+        adminSettings: player.adminSettings || {},
+        gameSettings: player.gameSettings || {},
+        statistics: player.statistics || {}
     };
     
     try {
