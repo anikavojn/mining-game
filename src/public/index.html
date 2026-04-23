@@ -1133,49 +1133,6 @@ if (stickBonusBtn) {
 // ============================================
 // 4. ИГРОК И ОСНОВНЫЕ ДАННЫЕ
 // ============================================
-// ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ИГРЫ ==========
-let window.gameReady = false; // Флаг готовности игры
-let window.serverDataLoaded = false; // Флаг загрузки данных с сервера
-
-// ========== ЭКРАН ЗАГРУЗКИ ==========
-function showLoadingScreen() {
-    let loader = document.getElementById('gameLoader');
-    if (!loader) {
-        loader = document.createElement('div');
-        loader.id = 'gameLoader';
-        loader.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #1a1a2e; z-index: 9999; display: flex;
-            flex-direction: column; justify-content: center; align-items: center;
-            color: #fff; font-family: 'Courier New', monospace;
-        `;
-        loader.innerHTML = `
-            <div style="font-size: 48px; margin-bottom: 20px;">⛏️</div>
-            <div style="font-size: 24px; font-weight: bold;">Загрузка игры...</div>
-            <div style="margin-top: 10px; color: #888;">Синхронизация с сервером</div>
-            <div id="loadStatus" style="margin-top: 20px; color: #4caf50;"></div>
-        `;
-        document.body.appendChild(loader);
-    }
-    loader.style.display = 'flex';
-}
-
-function hideLoadingScreen() {
-    const loader = document.getElementById('gameLoader');
-    if (loader) {
-        loader.style.opacity = '0';
-        loader.style.transition = 'opacity 0.5s';
-        setTimeout(() => {
-            loader.style.display = 'none';
-        }, 500);
-    }
-}
-
-function updateLoadStatus(msg) {
-    const status = document.getElementById('loadStatus');
-    if (status) status.innerText = msg;
-}
-
 let player = {
     username: "MINER_747",
     balance: 0.00000000, chips: 0, energy: 100, maxEnergy: 100,
@@ -2165,77 +2122,76 @@ function initTasks() {
     ];
     taskRefreshTime = Date.now() + 1800000;
 
-// ========== ИНИЦИАЛИЗАЦИЯ ИГРЫ С ЗАЩИТОЙ ОТ ГОНКИ ДАННЫХ ==========
+// В функции init() или после загрузки профиля
+async function initGame() {
+    // Сначала загружаем профиль пользователя
+    await loadUserProfile();
+    
+    // Затем загружаем прогресс с сервера
+    await loadGameFromServer();
+    
+    // Загружаем локальный сейв (как резерв)
+    loadGame();
+    
+    // ========== НОВАЯ ИНИЦИАЛИЗАЦИЯ С СЕРВЕРНЫМ СОХРАНЕНИЕМ ==========
 async function initGame() {
     console.log('🚀 Инициализация игры...');
     
-    // Показываем экран загрузки
-    showLoadingScreen();
-    updateLoadStatus('Загрузка профиля...');
+    // Загружаем профиль пользователя
+    await loadUserProfile();
     
-    try {
-        // 1. Загружаем профиль пользователя (имя, настройки)
-        await loadUserProfile();
-        
-        updateLoadStatus('Загрузка прогресса с сервера...');
-        
-        // 2. Загружаем прогресс с сервера (баланс, здания, статистика)
-        await loadGameFromServer();
-        
-        // 3. Загружаем локальный сейв только как резерв (если на сервере пусто)
-        loadGame();
-        
-        // 4. Инициализация всех систем ТОЛЬКО ПОСЛЕ загрузки данных
-        updateLoadStatus('Инициализация систем...');
-        
-        initTasks();
-        recalc();
-        renderRigs();
-        updateVoltage();
-        updateWeather();
-        updateCooling();
-        updateWiringDisplay();
-        startTraderSystem();
-        
-        // 5. Обновляем весь UI с загруженными данными
-        updateLoadStatus('Обновление интерфейса...');
-        refreshAllUI();
-        
-        // 6. Запускаем интервалы
-        setInterval(updateWeather, 10000);
-        setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
-        setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
-        
-        // 7. Автосохранение на сервер
-        setInterval(() => {
-            saveGameToServer();
-        }, 30000);
-        
-        // 8. Сохранение при закрытии
-        window.addEventListener('beforeunload', () => {
-            saveGameToServer();
-        });
-        
-        // Помечаем игру как готовую
-        window.gameReady = true;
-        window.serverDataLoaded = true;
-        
-        addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
-        addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
-        console.log('✅ Игра инициализирована с серверным сохранением, имя:', player.username);
-        
-        // Скрываем экран загрузки
-        hideLoadingScreen();
-        
-    } catch (error) {
-        console.error('❌ Ошибка инициализации игры:', error);
-        updateLoadStatus('Ошибка загрузки! Обновите страницу.');
-        addLog('❌ Ошибка инициализации: ' + error.message, 'error');
-    }
+    // Загружаем прогресс с сервера
+    await loadGameFromServer();
+    
+    // Загружаем локальный сейв (как резерв, если на сервере пусто)
+    loadGame();
+    
+    // Инициализация всех систем
+    initTasks();
+    recalc();
+    renderRigs();
+    updateVoltage();
+    updateWeather();
+    updateCooling();
+    updateWiringDisplay();
+    startTraderSystem();
+    
+    // Запускаем интервалы
+    setInterval(updateWeather, 10000);
+    setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
+    setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
+    
+    // ========== АВТОСОХРАНЕНИЕ НА СЕРВЕР ==========
+    // Каждые 30 секунд
+    setInterval(() => {
+        saveGameToServer();
+    }, 30000);
+    
+    // При закрытии страницы
+    window.addEventListener('beforeunload', () => {
+        saveGameToServer();
+    });
+    
+    addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
+    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
+    console.log('✅ Игра инициализирована с серверным сохранением');
 }
 
 // ЗАПУСКАЕМ ИГРУ
 initGame();
+    
+    // Сохраняем при закрытии страницы
+    window.addEventListener('beforeunload', () => {
+        saveGameToServer();
+    });
+    
+    console.log('✅ Игра инициализирована с серверным сохранением');
+}
+
+// Вызываем initGame вместо старой инициализации
+initGame();
+
+}
 
 function updateTasksUI() {
     let container = document.getElementById('tasksWindowContent');
@@ -2310,9 +2266,6 @@ function checkMicroEvent() {
 let lastVoltageDriftTime = 0;
 
 function updateSim() {
-    // ЗАЩИТА: не выполняем симуляцию до загрузки данных
-    if (!window.gameReady) return;
-    
     // ========== ОТСЛЕЖИВАНИЕ ВРЕМЕНИ МАЙНИНГА (В НАЧАЛЕ) ==========
     let now = Date.now();
     if (player.mining && player.energy > 0) {
