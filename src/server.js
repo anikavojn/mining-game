@@ -670,64 +670,6 @@ app.get('/api/game/load', auth, async (req, res) => {
         
         res.json({ success: true, save_data: saveData, username: user.username });
 
-        // Собираем полные данные из БД
-        let saveData = {
-            // Основные ресурсы
-            balance: user.balance || 0,
-            chips: user.chips || 0,
-            energy: user.energy || 100,
-            maxEnergy: user.max_energy || 100,
-            basePower: user.base_power || 2,
-            voltage: user.voltage || 11.8,
-            
-            // Состояние
-            mining: user.mining || false,
-            oc: user.oc || false,
-            
-            // Статистика майнинга
-            shares: user.shares || 0,
-            blocks: user.blocks || 0,
-            totalShares: user.total_shares || 0,
-            totalBlocks: user.total_blocks || 0,
-            totalEarned: user.total_earned || 0,
-            miningEarned: user.mining_earned || 0,
-            
-            // Повреждения и обслуживание
-            equipmentDamage: user.equipment_damage || 0,
-            dust: user.dust || 0,
-            
-            // Энергетика
-            solar: user.solar || 0,
-            powerBank: user.power_bank || 0,
-            
-            // Защита и PVP
-            defense: user.defense || 30,
-            antivirus: user.antivirus || 1,
-            stolen: user.stolen || 0,
-            firewall: user.firewall || false,
-            
-            // Пул
-            inPool: user.in_pool || false,
-            poolBonus: user.pool_bonus || 0,
-            pvpBonus: user.pvp_bonus || 0,
-            
-            // JSON поля
-            inv: user.inv || { cpu_miner: 1 },
-            research: user.research || { gpu: false, asic: false, highEnd: false, industrial: false },
-            ach: user.ach || { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false },
-            buffs: user.buffs || { hash: 1, luck: 1 },
-            cooling: user.cooling || { fan: 65, pump: 50, water: 30 },
-            wiringFaults: user.wiring_faults || [false, false, false, false, false, false],
-            researchTimers: user.research_timers || {},
-            researchCompleted: user.research_completed || {},
-            
-            // Время
-            totalGameTime: user.total_game_time || 0,
-            totalMiningTime: user.total_mining_time || 0
-        };
-        
-        // Если есть save_data (JSONB) и в нём есть дополнительные поля — мержим
-        if (user.save_data && typeof user.save_data === 'object') {
             saveData = { ...saveData, ...user.save_data };
         }
         
