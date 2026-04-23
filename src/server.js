@@ -582,17 +582,11 @@ app.get('/api/game/load', auth, async (req, res) => {
     try {
         const { data: user, error } = await supabase
             .from('users')
- qwen-code-75c5fa04-6ddc-4a22-97f6-2e53a23b9e6b
             .select('username, save_data, balance, chips, base_power, inv, energy, defense, pvp_bonus, wiring_faults, cooling, buffs, research, ach, total_game_time, total_mining_time, research_timers, research_completed, oc, max_energy, voltage, mining, shares, blocks, total_shares, total_blocks, total_earned, mining_earned, equipment_damage, dust, solar, power_bank, antivirus, stolen, in_pool, pool_bonus, firewall')
-
-            .select('*')  // Загружаем ВСЕ поля
- main
             .eq('id', req.userId)
             .single();
         
         if (error) throw error;
-        
- qwen-code-75c5fa04-6ddc-4a22-97f6-2e53a23b9e6b
         let saveData = user.save_data;
         // Если есть save_data - отдаём его, иначе собираем из отдельных полей
         if (!saveData) {
