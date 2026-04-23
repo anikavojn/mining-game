@@ -512,19 +512,21 @@ app.get('/api/game/profile', auth, async (req, res) => {
     }
 });
 
-// Сохранить прогресс (ОДИН РАЗ)
-// Сохранить прогресс (ВСЕ данные)
+// ========== ИСПРАВЛЕННЫЙ МАРШРУТ СОХРАНЕНИЯ ==========
 app.post('/api/game/save', auth, async (req, res) => {
     try {
         const data = req.body;
         
-        // Обновляем все поля в таблице users
+        // Обновляем ВСЕ поля в таблице users
         const updateData = {
             balance: data.balance || 0,
             chips: data.chips || 0,
             energy: data.energy || 100,
+            max_energy: data.maxEnergy || 100,
             base_power: data.basePower || 2,
             voltage: data.voltage || 11.8,
+            mining: data.mining || false,
+            oc: data.oc || false,
             shares: data.shares || 0,
             blocks: data.blocks || 0,
             total_shares: data.totalShares || 0,
@@ -541,9 +543,8 @@ app.post('/api/game/save', auth, async (req, res) => {
             in_pool: data.inPool || false,
             pool_bonus: data.poolBonus || 0,
             pvp_bonus: data.pvpBonus || 0,
-            oc: data.oc || false,
-            max_energy: data.maxEnergy || 100,
-            // Сохраняем все сложные данные как JSON
+            firewall: data.firewall || false,
+            // Сохраняем JSON поля
             inv: data.inv || { cpu_miner: 1 },
             research: data.research || { gpu: false, asic: false, highEnd: false, industrial: false },
             ach: data.ach || { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false },
@@ -554,8 +555,7 @@ app.post('/api/game/save', auth, async (req, res) => {
             research_completed: data.researchCompleted || {},
             total_game_time: data.totalGameTime || 0,
             total_mining_time: data.totalMiningTime || 0,
-            // Сохраняем всё в JSONB поле для резерва
-            save_data: data,
+            save_data: data,  // полный бэкап
             last_active: new Date()
         };
         
@@ -577,18 +577,22 @@ app.post('/api/game/save', auth, async (req, res) => {
     }
 });
 
-// Загрузить прогресс
-// Загрузить прогресс
+// ========== ИСПРАВЛЕННЫЙ МАРШРУТ ЗАГРУЗКИ ==========
 app.get('/api/game/load', auth, async (req, res) => {
     try {
         const { data: user, error } = await supabase
             .from('users')
+ qwen-code-75c5fa04-6ddc-4a22-97f6-2e53a23b9e6b
             .select('username, save_data, balance, chips, base_power, inv, energy, defense, pvp_bonus, wiring_faults, cooling, buffs, research, ach, total_game_time, total_mining_time, research_timers, research_completed, oc, max_energy, voltage, mining, shares, blocks, total_shares, total_blocks, total_earned, mining_earned, equipment_damage, dust, solar, power_bank, antivirus, stolen, in_pool, pool_bonus, firewall')
+
+            .select('*')  // Загружаем ВСЕ поля
+ main
             .eq('id', req.userId)
             .single();
         
         if (error) throw error;
         
+ qwen-code-75c5fa04-6ddc-4a22-97f6-2e53a23b9e6b
         let saveData = user.save_data;
         // Если есть save_data - отдаём его, иначе собираем из отдельных полей
         if (!saveData) {
@@ -671,6 +675,72 @@ app.get('/api/game/load', auth, async (req, res) => {
         }
         
         res.json({ success: true, save_data: saveData, username: user.username });
+
+        // Собираем полные данные из БД
+        let saveData = {
+            // Основные ресурсы
+            balance: user.balance || 0,
+            chips: user.chips || 0,
+            energy: user.energy || 100,
+            maxEnergy: user.max_energy || 100,
+            basePower: user.base_power || 2,
+            voltage: user.voltage || 11.8,
+            
+            // Состояние
+            mining: user.mining || false,
+            oc: user.oc || false,
+            
+            // Статистика майнинга
+            shares: user.shares || 0,
+            blocks: user.blocks || 0,
+            totalShares: user.total_shares || 0,
+            totalBlocks: user.total_blocks || 0,
+            totalEarned: user.total_earned || 0,
+            miningEarned: user.mining_earned || 0,
+            
+            // Повреждения и обслуживание
+            equipmentDamage: user.equipment_damage || 0,
+            dust: user.dust || 0,
+            
+            // Энергетика
+            solar: user.solar || 0,
+            powerBank: user.power_bank || 0,
+            
+            // Защита и PVP
+            defense: user.defense || 30,
+            antivirus: user.antivirus || 1,
+            stolen: user.stolen || 0,
+            firewall: user.firewall || false,
+            
+            // Пул
+            inPool: user.in_pool || false,
+            poolBonus: user.pool_bonus || 0,
+            pvpBonus: user.pvp_bonus || 0,
+            
+            // JSON поля
+            inv: user.inv || { cpu_miner: 1 },
+            research: user.research || { gpu: false, asic: false, highEnd: false, industrial: false },
+            ach: user.ach || { firstShare: false, firstBlock: false, rich: false, overclocker: false, miner: false },
+            buffs: user.buffs || { hash: 1, luck: 1 },
+            cooling: user.cooling || { fan: 65, pump: 50, water: 30 },
+            wiringFaults: user.wiring_faults || [false, false, false, false, false, false],
+            researchTimers: user.research_timers || {},
+            researchCompleted: user.research_completed || {},
+            
+            // Время
+            totalGameTime: user.total_game_time || 0,
+            totalMiningTime: user.total_mining_time || 0
+        };
+        
+        // Если есть save_data (JSONB) и в нём есть дополнительные поля — мержим
+        if (user.save_data && typeof user.save_data === 'object') {
+            saveData = { ...saveData, ...user.save_data };
+        }
+        
+        console.log(`📥 Загружено для ${user.username}: баланс=${saveData.balance}, чипы=${saveData.chips}`);
+        res.json({ success: true, save_data: saveData });
+        
+ main
     } catch (err) {
         console.error('Load error:', err);
         res.status(500).json({ error: err.message });
