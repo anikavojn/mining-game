@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>" type="image/svg+xml">
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>    
 
 <script>
@@ -750,6 +751,36 @@ if (!window.token) {
 // 1. ЗВУКОВАЯ СИСТЕМА
 // ============================================
 let audioCtx = null;
+let audioInitialized = false;
+let audioResumeAttempted = false;
+
+function initAudioOnUserGesture() {
+    if (audioInitialized) return;
+    if (!audioCtx) {
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+            return;
+        }
+    }
+    if (audioCtx.state === 'suspended' && !audioResumeAttempted) {
+        audioResumeAttempted = true;
+        audioCtx.resume().then(() => {
+            audioInitialized = true;
+        }).catch(() => {
+            audioResumeAttempted = false;
+        });
+    } else {
+        audioInitialized = true;
+    }
+}
+
+// Initialize audio on first user interaction
+document.addEventListener('click', initAudioOnUserGesture, { once: true });
+document.addEventListener('keydown', initAudioOnUserGesture, { once: true });
+document.addEventListener('touchstart', initAudioOnUserGesture, { once: true });
+
+
 function getAudioContext() {
     if (!audioCtx) {
         try {
@@ -758,8 +789,9 @@ function getAudioContext() {
             return null;
         }
     }
-    if (audioCtx.state === 'suspended') {
-        try { audioCtx.resume(); } catch(e) {}
+    // Only attempt resume if user has interacted
+    if (audioInitialized && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
     }
     return audioCtx;
 }
@@ -767,7 +799,7 @@ function getAudioContext() {
 function beep(f, d, v = 0.3) {
     try {
         const ctx = getAudioContext();
-        if (!ctx) return;
+        if (!ctx || ctx.state !== 'running') return;
         let o = ctx.createOscillator(), g = ctx.createGain();
         o.connect(g);
         g.connect(ctx.destination);
