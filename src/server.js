@@ -449,7 +449,8 @@ app.get('/api/admin/economy', async (req, res) => {
 
 // ========== МАРШРУТЫ БАЛАНСИРОВКИ ==========
 
-app.get('/api/admin/balance', isAdmin, async (req, res) => {
+app.get('/api/admin/balance', auth, async (req, res) => {
+
     try {
         res.json({ success: true, settings: global.balanceSettings });
     } catch (err) {

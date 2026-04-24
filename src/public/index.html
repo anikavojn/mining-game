@@ -11,7 +11,8 @@ const token = localStorage.getItem('mining_token');
 // Глобальный флаг загрузки
 window.gameReady = false;
 
-if (!token) {
+window.token = localStorage.getItem('mining_token');
+if (!window.token) {
     window.location.href = '/login.html';
 }
 </script>
@@ -1047,13 +1048,13 @@ function updateProfileDisplay() {
 // Вызывайте эту функцию после загрузки профиля и после updateUI
 
 async function syncBalanceToServer() {
-    if (!token) return;
+    if (!window.token) return;
     
     try {
         await fetch('/api/game/sync', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${window.token}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -1751,11 +1752,11 @@ function addLog(msg, type = 'info') {
 // ========== СОХРАНЕНИЕ И ЗАГРУЗКА ПРОГРЕССА НА СЕРВЕР ==========
 
 async function loadGameFromServer() {
-    if (!token) return false;
+    if (!window.token) return false;
     
     try {
         const res = await fetch('/api/game/profile', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${window.token}` }
         });
         const data = await res.json();
         
@@ -1848,8 +1849,8 @@ if (loadingScreen) {
 
 // Сохранение прогресса на сервер
 async function saveGameToServer() {
-    const token = localStorage.getItem('mining_token');
-    if (!token) return false;
+    window.token = localStorage.getItem('mining_token');
+    if (!window.token) return false;
     
     // Обновляем активное время игры
     if (document.visibilityState === 'visible') {
@@ -3839,13 +3840,21 @@ if (typeof socket !== 'undefined') {
     
     // Загружаем настройки при старте
     setTimeout(() => {
-        fetch('/api/admin/balance')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) applyBalanceSettings(data.settings);
-            })
-            .catch(err => console.error('Ошибка загрузки настроек:', err));
-    }, 1000);
+    const token = localStorage.getItem('mining_token');
+    if (!token) return;
+    fetch('/api/admin/balance', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) applyBalanceSettings(data.settings);
+        })
+        .catch(err => console.error('Ошибка загрузки настроек:', err));
+}, 1000);
+
+
 }
 
     // ========== ОБРАБОТЧИКИ СОКЕТА ==========
@@ -6105,7 +6114,7 @@ async function saveGameToServer() {
 }
 
 async function loadGameFromServer() {
-    if (!token) return false;
+    if (!window.token) return false;
     
     try {
         const res = await fetch('/api/game/profile', {
