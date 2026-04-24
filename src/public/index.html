@@ -750,7 +750,35 @@ if (!window.token) {
 // 1. ЗВУКОВАЯ СИСТЕМА
 // ============================================
 let audioCtx = null;
-function beep(f, d, v = 0.3) { try { if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume(); let o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.frequency.value = f; g.gain.value = v; o.start(); g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d); o.stop(audioCtx.currentTime + d); } catch (e) { } }
+function getAudioContext() {
+    if (!audioCtx) {
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+            return null;
+        }
+    }
+    if (audioCtx.state === 'suspended') {
+        try { audioCtx.resume(); } catch(e) {}
+    }
+    return audioCtx;
+}
+
+function beep(f, d, v = 0.3) {
+    try {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        let o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.frequency.value = f;
+        g.gain.value = v;
+        o.start();
+        g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + d);
+        o.stop(ctx.currentTime + d);
+    } catch (e) { /* тихо */ }
+}
+
 function playAlert() { beep(880, 0.15, 0.4); setTimeout(() => beep(440, 0.2, 0.3), 150); }
 function playSuccess() { beep(523, 0.15, 0.3); setTimeout(() => beep(659, 0.15, 0.3), 120); setTimeout(() => beep(784, 0.2, 0.3), 240); }
 function playFail() { beep(440, 0.2, 0.4); setTimeout(() => beep(349, 0.3, 0.4), 200); }
