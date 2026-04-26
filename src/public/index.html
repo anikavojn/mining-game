@@ -1808,6 +1808,8 @@ function addLog(msg, type = 'info') {
                 logList.innerHTML = html || '<div>Нет событий</div>';
             }
         }
+    });
+}
 
 // ========== СОХРАНЕНИЕ И ЗАГРУЗКА ПРОГРЕССА НА СЕРВЕР ==========
 
@@ -1959,25 +1961,6 @@ async function saveGameToServer() {
         return false;
     }
 }
-
-    });
-    
-    // ОБНОВЛЯЕМ ТЕРМИНАЛ
-    document.querySelectorAll('.terminal-content').forEach(t => {
-        if (t) {
-            let html = '';
-            for (let i = globalLogs.length - 1; i >= 0; i--) {
-                let l = globalLogs[i];
-                html += `<div class="log-entry ${l.type}">[${l.time}] ${l.msg}</div>`;
-            }
-            t.innerHTML = html;
-        }
-    });
-    
-    
-}
-
-
 
 function updateGauge(gaugeId, percent, valueId) {
     let gauge = document.getElementById(gaugeId);
@@ -2598,23 +2581,7 @@ if (!window.gameReady) return;
                 addLog(`🔧 ФЕРМА ВОССТАНОВЛЕНА! Вы получили базовое оборудование.`, 'success');
                 toast(`🔧 Ферма восстановлена!`);
                 playSuccess();
-            }
-            // ========== ОТСЛЕЖИВАНИЕ ВРЕМЕНИ МАЙНИНГА (ИСПРАВЛЕНО) ==========
-    let now = Date.now();
-    if (player.mining && player.energy > 0) {
-        if (player.lastMiningCheck) {
-            let delta = now - player.lastMiningCheck;
-            if (delta > 0 && delta < 10000) { // защита от скачков времени
-                player.miningTime += delta;
-            }
-        }
-        player.lastMiningCheck = now;
-    } else {
-        // Если майнинг остановлен, просто обновляем время проверки
-        player.lastMiningCheck = now;
-    }
-    // ========== КОНЕЦ ==========
-       
+            }   
         }, 1000);
         
         updateUI();
@@ -3825,7 +3792,9 @@ function renderLog(cont) {
             html += '<div class="log-entry ' + l.type + '">[' + l.time + '] ' + l.msg + '</div>';
         }
         logList.innerHTML = html || '<div>Нет событий</div>';
-    }
+        }
+    
+
     
     let filtersHtml = '';
     let filters = ['all', 'success', 'warning', 'error', 'block', 'info'];
