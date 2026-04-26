@@ -1974,7 +1974,7 @@ async function saveGameToServer() {
         }
     });
     
-    console.log(`[${type}] ${msg}`);
+    
 }
 
 
@@ -2839,7 +2839,13 @@ coolEff = Math.min(1.0, coolEff + coolingGearBonus);
     let baseDamage = window.gameBalance?.overheatDmg ?? 3;
     let damage = Math.floor(baseDamage + Math.random() * 5);
     player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
-    addLog(`⚠️ Температура ${temp}°C! Перегрев: -${damage}%`, 'warning');
+    
+    let now = Date.now();
+    if (now - lastOverheatLog > OVERHEAT_LOG_COOLDOWN) {
+        lastOverheatLog = now;
+        addLog(`⚠️ Температура ${temp}°C! Перегрев: -${damage}%`, 'warning');
+    }
+
 }
     if (player.voltage > 13.2) addLog(`⚡ Высокое напряжение ${player.voltage.toFixed(1)}V!`, 'warning');
     
@@ -4836,11 +4842,6 @@ startTraderSystem();
 setInterval(updateWeather, 10000);
 setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
 setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
-
-addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
-addLog('🎮 Стик: чётная секунда = победа, нечётная = поражение со штрафами!', 'info');
-addLog('🔧 Система повреждений: теперь реально влияет на хешрейт!', 'info');
-addLog('🤝 Торговля с ботами: Лиса, Медведь, Ворон, Электрик, Шут', 'info');
 
 // ============================================
 // ТОТАЛЬНОЕ УНИЧТОЖЕНИЕ ФЕРМЫ
