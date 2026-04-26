@@ -1977,7 +1977,7 @@ async function saveGameToServer() {
     console.log(`[${type}] ${msg}`);
 }
 
-setInterval(() => { if(globalLogs.length) console.log('Журнал жив, записей:', globalLogs.length); }, 30000);
+
 
 function updateGauge(gaugeId, percent, valueId) {
     let gauge = document.getElementById(gaugeId);
@@ -1999,6 +1999,9 @@ let waterSlider = document.getElementById('coolWaterSlider');
 let coolingLed = document.getElementById('coolingLed');
 let coolingRisk = document.getElementById('coolingRisk');
 
+let lastOverheatLog = 0;
+const OVERHEAT_LOG_COOLDOWN = 10000; // 10 секунд
+
 function updateCooling() {
     player.cooling.fan = parseInt(fanSlider.value);
     player.cooling.pump = parseInt(pumpSlider.value);
@@ -2011,11 +2014,17 @@ function updateCooling() {
     if (Math.random() < risk / 100) {
         let damage = Math.floor(Math.random() * 5) + 3;
         player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
-        addLog(`🔥 ПЕРЕГРЕВ! Оборудование повреждено на ${damage}%!`, 'error');
-        playFail();
-        toast(`🔥 Перегрев! -${damage}% к эффективности`);
+        
+        let now = Date.now();
+        if (now - lastOverheatLog > OVERHEAT_LOG_COOLDOWN) {
+            lastOverheatLog = now;
+            addLog(`🔥 ПЕРЕГРЕВ! Оборудование повреждено на ${damage}%!`, 'error');
+            playFail();
+            toast(`🔥 Перегрев! -${damage}% к эффективности`);
+        }
     }
 }
+
 if (fanSlider) fanSlider.addEventListener('input', updateCooling);
 if (pumpSlider) pumpSlider.addEventListener('input', updateCooling);
 if (waterSlider) waterSlider.addEventListener('input', updateCooling);
@@ -6244,10 +6253,7 @@ setInterval(() => {
     }
 }, 30000);
 
-// Загружаем при старте
-setTimeout(() => {
-    loadGameFromServer();
-}, 1000);
+
 </script>
 <script>
 // ========== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ИМЕНИ ==========
