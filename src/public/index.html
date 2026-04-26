@@ -1993,19 +1993,6 @@ function updateCooling() {
     let risk = Math.max(0, (100 - (player.cooling.fan + player.cooling.pump + player.cooling.water) / 3) / 2);
     coolingRisk.innerHTML = `⚠️ Риск перегрева: ${Math.floor(risk)}%`;
     coolingLed.style.background = `#44aaff`;
-    
-    if (Math.random() < risk / 100) {
-        let damage = Math.floor(Math.random() * 5) + 3;
-        player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
-        
-        let now = Date.now();
-        if (now - lastOverheatLog > OVERHEAT_LOG_COOLDOWN) {
-            lastOverheatLog = now;
-            addLog(`🔥 ПЕРЕГРЕВ! Оборудование повреждено на ${damage}%!`, 'error');
-            playFail();
-            toast(`🔥 Перегрев! -${damage}% к эффективности`);
-        }
-    }
 }
 
 if (fanSlider) fanSlider.addEventListener('input', updateCooling);
