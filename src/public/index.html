@@ -1876,7 +1876,7 @@ async function loadGameFromServer() {
                 console.log('✅ Загружено с сервера');
 
                 // После загрузки данных и их применения
-window.gameReady = true;
+                window.gameReady = true;
 
 // Скрытие экрана загрузки (если есть элемент с id='loadingScreen')
 const loadingScreen = document.getElementById('loadingScreen');
@@ -5826,13 +5826,6 @@ document.querySelectorAll('.dummy-btn[data-dummy="5"]').forEach(btn => {
 // 7. Инициализация при старте
 updatePowerBankUI();
 
-// Автосохранение
-setInterval(() => { saveGame(); }, 3000);
-window.addEventListener('beforeunload', () => { saveGame(); });
-
-// Загружаем игру при старте
-setTimeout(() => { loadGame(); }, 100);
-
 // ===== ЗАПУСК АВТООБНОВЛЕНИЯ ОКОН =====
 setTimeout(() => { 
     autoRefreshWindows(); 
@@ -5881,17 +5874,13 @@ fixWiringPort = function(index) {
     checkSecretSequence(portName);
     originalFixWiringPort(index);
 };
-// Запускаем updateSim только после готовности игры
-function startUpdateSim() {
-    if (!window.gameReady) {
-        setTimeout(startUpdateSim, 100);
-        return;
-    }
+
+    if (!window._updateSimStarted) {
+    window._updateSimStarted = true;
     setInterval(updateSim, 2500);
     updateSim();
-    console.log('✅ Цикл updateSim запущен');
-}
-startUpdateSim();
+}    
+
 // Обновляем кнопку открытия магазина
 const marketBtn = document.getElementById('openMarketBtn');
 if (marketBtn) {
@@ -6116,70 +6105,10 @@ function loadGame() {
         try {
             const data = JSON.parse(saved);
             Object.assign(player, data);
-            console.log('✅ Загружено из localStorage');
+            
         } catch(e) {
             console.error('Ошибка загрузки из localStorage:', e);
         }
-    }
-}
-
-async function saveGameToServer() {
-    if (!token) return;
-    
-    const saveData = {
-        balance: player.balance,
-        chips: player.chips,
-        energy: player.energy,
-        maxEnergy: player.maxEnergy,
-        basePower: player.basePower,
-        voltage: player.voltage,
-        mining: player.mining,
-        oc: player.oc,
-        shares: player.shares,
-        blocks: player.blocks,
-        totalShares: player.totalShares,
-        totalBlocks: player.totalBlocks,
-        totalEarned: player.totalEarned,
-        spm: player.spm,
-        totalGameTime: window.gameActiveTime,
-        totalMiningTime: player.miningTime,
-        buffs: player.buffs,
-        cooling: player.cooling,
-        defense: player.defense,
-        antivirus: player.antivirus,
-        firewall: player.firewall,
-        stolen: player.stolen,
-        solar: player.solar,
-        inPool: player.inPool,
-        poolBonus: player.poolBonus,
-        equipmentDamage: player.equipmentDamage,
-        wiringFaults: player.wiringFaults,
-        dust: player.dust,
-        lastBlow: player.lastBlow,
-        lastService: player.lastService,
-        research: player.research,
-        inv: player.inv,
-        ach: player.ach,
-        powerBank: player.powerBank,
-        weather: player.weather,
-        pvpBonus: player.pvpBonus,
-        miningEarned: player.miningEarned,
-        researchTimers: player.researchTimers || {},
-        researchCompleted: player.researchCompleted || {}
-    };
-    
-    try {
-        await fetch('/api/game/save', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(saveData)
-        });
-        console.log('💾 Сохранено на сервер');
-    } catch(e) {
-        console.error('Ошибка сохранения:', e);
     }
 }
 
