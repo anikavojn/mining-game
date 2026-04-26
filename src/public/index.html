@@ -2252,15 +2252,6 @@ function checkAlarmAndOc(temp) {
 let tasks = [];
 let taskRefreshTime = 0;
 
-function initTasks() {
-    tasks = [
-        { name: "Стабилизируй напряжение", desc: "Держи 11.8-12.2V", progress: 0, target: 60, unit: "сек", type: "voltage" },
-        { name: "Собери чипы", desc: "Добудь чипы", progress: 0, target: 15, unit: "шт", type: "chips" },
-        { name: "Найди шары", desc: "Найди шары", progress: 0, target: 30, unit: "шт", type: "shares" }
-    ];
-    taskRefreshTime = Date.now() + 1800000;
-
-// В функции init() или после загрузки профиля
 async function loadUserProfile() {
     // Заглушка, если функция не определена в другом месте
     if (typeof token !== 'undefined' && token) {
@@ -2278,7 +2269,82 @@ async function loadUserProfile() {
 async function initGame() {
     console.log('🚀 Инициализация игры...');
 
+    // Показываем прогресс загрузки
+    const loadingBar = document.getElementById('loadingBar');
+    if (loadingBar) loadingBar.style.width = '20%';
 
+    // Загружаем профиль пользователя
+    await loadUserProfile();
+    if (loadingBar) loadingBar.style.width = '40%';
+
+    // Загружаем прогресс с сервера
+    await loadGameFromServer();
+    if (loadingBar) loadingBar.style.width = '70%';
+
+    // Загружаем локальный сейв (как резерв, если на сервере пусто)
+    loadGame();
+    if (loadingBar) loadingBar.style.width = '90%';
+
+    // Инициализация всех систем
+    initTasks();
+    recalc();
+    renderRigs();
+    updateVoltage();
+    updateWeather();
+    updateCooling();
+    updateWiringDisplay();
+    startTraderSystem();
+
+    // Обновляем весь UI после загрузки
+    if (typeof updateUI === 'function') updateUI();
+    if (typeof renderRigs === 'function') renderRigs();
+    if (typeof recalc === 'function') recalc();
+
+    if (loadingBar) loadingBar.style.width = '100%';
+
+    // Скрываем экран загрузки
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.style.transition = 'opacity 0.5s';
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => loadingScreen.remove(), 500);
+    }
+
+    // ТЕПЕРЬ игра готова
+    window.gameReady = true;
+    console.log('✅ Игра полностью загружена и готова к работе');
+
+    // Запускаем интервалы
+    setInterval(updateWeather, 10000);
+    setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
+    setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
+
+    // ========== АВТОСОХРАНЕНИЕ НА СЕРВЕР ==========
+    setInterval(() => {
+        saveGameToServer();
+    }, 30000);
+
+    window.addEventListener('beforeunload', () => {
+        saveGameToServer();
+    });
+
+    addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
+    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
+}
+
+function initTasks() {
+    tasks = [
+        { name: "Стабилизируй напряжение", desc: "Держи 11.8-12.2V", progress: 0, target: 60, unit: "сек", type: "voltage" },
+        { name: "Собери чипы", desc: "Добудь чипы", progress: 0, target: 15, unit: "шт", type: "chips" },
+        { name: "Найди шары", desc: "Найди шары", progress: 0, target: 30, unit: "шт", type: "shares" }
+    ];
+    taskRefreshTime = Date.now() + 1800000;
+}
+    
+
+
+async function initGame() {
+    
     // Показываем прогресс загрузки
     const loadingBar = document.getElementById('loadingBar');
     if (loadingBar) loadingBar.style.width = '20%';
@@ -2344,9 +2410,6 @@ async function initGame() {
     
     addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
     addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');  
-}
-// ЗАПУСКАЕМ ИГРУ
-initGame();
 }
 
 function updateTasksUI() {
@@ -4782,7 +4845,7 @@ document.addEventListener('mouseup', () => { dragV = false; document.body.style.
 
 document.querySelectorAll('.action-btn, .switch .toggle, .steal-button, .upgrade-buy, .market-item-buy, .rig-sell, .repair-btn, .maint-btn, .trade-offer-btn').forEach(b => b.addEventListener('click', playClick));
 
-initTasks();
+initGame();
 recalc();
 renderRigs();
 updateVoltage();
