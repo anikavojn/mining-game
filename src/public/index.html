@@ -3923,11 +3923,8 @@ function applyBalanceSettings(settings) {
     energyCost: settings.energyCost || 1,
     repairCost: 0.00000001,
     repairChips: 2
-};
-    
-    
+};   
 }
-
 // Подписываемся на обновления
 if (typeof socket !== 'undefined') {
     socket.on('economy_update', (data) => {
@@ -3950,8 +3947,6 @@ if (typeof socket !== 'undefined') {
         })
         .catch(err => console.error('Ошибка загрузки настроек:', err));
 }, 1000);
-
-
 }
 
     // ========== ОБРАБОТЧИКИ СОКЕТА ==========
@@ -3961,20 +3956,15 @@ window.socket.on('economy_update', (data) => {
         // Обновляем локальные настройки в игре
     if (typeof window.updateBalanceSettings === 'function') {
         window.updateBalanceSettings(data);
-    }
-        
-});
-    
+    }   
+});  
     // Получение обновлений экономики от админа
     window.socket.on('force_reload', () => {
     location.reload();
 });
-
     window.socket.on('economy_update', (settings) => {
-        window.economySettings = settings;
-        
+        window.economySettings = settings;     
     });
-
     window.socket.on('connect', () => {
         if (currentUsername) {
             window.socket.emit('user_online', currentUsername);
@@ -3990,22 +3980,15 @@ window.socket.on('economy_update', (data) => {
                 if (messagesDiv) {
                     messagesDiv.innerHTML = '';
                 }
-                // Если есть локальный массив у окна
                 if (win._chatMessages) {
                     win._chatMessages = [];
                 }
             }
         });
-        
-        // Также очищаем глобальный массив если он есть
         if (typeof chatMsgs !== 'undefined') {
             chatMsgs = [];
         }
-        
-        // Не показываем тост — только тихая очистка
-    });        
-
-            
+    });                
         }
     });
 }
@@ -4015,67 +3998,36 @@ window.socket.on('economy_update', (data) => {
 // ============================================
 
 if (window.socket) {
-    // Обработчик обновления экономических настроек
     window.socket.on('economy_update', (settings) => {
-
-        // Получение обновлений экономики от админа
 window.socket.on('economy_update', (settings) => {
-    
-    // Сохраняем настройки в глобальные переменные
-    window.economySettings = settings;
-    
-    // Показываем уведомление игроку
-    
+    window.economySettings = settings;  
 });
-        
-        // Сохраняем настройки в глобальную переменную
         window.economySettings = settings;
-        
-        // Обновляем переменные в игре
         if (settings.shareReward !== undefined) {
             window.shareReward = settings.shareReward;
-            addLog(`📊 Награда за шару изменена: ${settings.shareReward} SOL`, 'info');
         }
-        
         if (settings.blockReward !== undefined) {
             window.blockReward = settings.blockReward;
-            addLog(`🏆 Награда за блок изменена: ${settings.blockReward} SOL`, 'info');
         }
-        
         if (settings.poolBonus !== undefined && player) {
             player.poolBonus = settings.poolBonus;
-            addLog(`🤝 Бонус пула изменён: +${settings.poolBonus}%`, 'info');
             if (typeof recalc === 'function') recalc();
         }
-        
         if (settings.energyCost !== undefined) {
             window.energyCostMultiplier = settings.energyCost;
-            addLog(`⚡ Стоимость энергии изменена: x${settings.energyCost}`, 'info');
-        }
-        
-        // Показываем уведомление игроку
-        
+        } 
         playClick();
-        
-        // Обновляем UI если нужно
         if (typeof updateUI === 'function') updateUI();
     });
-    
-    // Также можно добавить обработчик для отдельных параметров
     window.socket.on('share_reward_update', (reward) => {
         window.shareReward = reward;
         addLog(`📊 Награда за шару: ${reward} SOL`, 'info');
     });
-    
     window.socket.on('block_reward_update', (reward) => {
         window.blockReward = reward;
         addLog(`🏆 Награда за блок: ${reward} SOL`, 'info');
-    });
-
-
-    
+    });    
 }
-
 function renderChat(cont, wid) {
     // Очищаем содержимое окна
     cont.innerHTML = `
@@ -4087,12 +4039,9 @@ function renderChat(cont, wid) {
             </div>
         </div>
     `;
-    
     const messagesDiv = cont.querySelector('.chat-messages-win');
     const input = cont.querySelector(`#chatIn_${wid}`);
     const sendBtn = cont.querySelector(`#chatSend_${wid}`);
-    
-    // Локальный массив сообщений для этого окна
     let localChatMsgs = [];
     
     function updateMessages() {
@@ -6113,7 +6062,7 @@ function showWithdrawWindow() {
             const nameSpan = document.getElementById('profileUsername');
             if (nameSpan) {
                 nameSpan.innerText = data.user.username;
-                console.log('✅ Имя обновлено:', data.user.username);
+
             }
             
             // Обновляем всю кнопку
