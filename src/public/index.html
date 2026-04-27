@@ -1875,8 +1875,6 @@ async function loadGameFromServer() {
                 window.gameActiveTime = saved.totalGameTime ?? 0;
                 player.miningTime = saved.totalMiningTime ?? 0;
                 
-                console.log('✅ Загружено с сервера');
-
                 // После загрузки данных и их применения
                 window.gameReady = true;
 
@@ -1929,28 +1927,38 @@ async function saveGameToServer() {
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-                balance: player.balance,
-                chips: player.chips,
-                energy: player.energy,
-                basePower: player.basePower,
-                shares: player.shares,
-                blocks: player.blocks,
-                totalShares: player.totalShares,
-                totalBlocks: player.totalBlocks,
-                totalEarned: player.totalEarned,
-                miningEarned: player.miningEarned,
-                equipmentDamage: player.equipmentDamage,
-                inv: player.inv,
-                research: player.research,
-                dust: player.dust,
-                solar: player.solar,
-                powerBank: player.powerBank
-            })
+    save_data: {
+        balance: player.balance,
+        chips: player.chips,
+        energy: player.energy,
+        maxEnergy: player.maxEnergy,
+        basePower: player.basePower,
+        voltage: player.voltage,
+        oc: player.oc,
+        shares: player.shares,
+        blocks: player.blocks,
+        totalShares: player.totalShares,
+        totalBlocks: player.totalBlocks,
+        totalEarned: player.totalEarned,
+        miningEarned: player.miningEarned,
+        equipmentDamage: player.equipmentDamage,
+        inv: player.inv,
+        research: player.research,
+        dust: player.dust,
+        solar: player.solar,
+        powerBank: player.powerBank,
+        pvpBonus: player.pvpBonus,
+        researchTimers: player.researchTimers,
+        researchCompleted: player.researchCompleted,
+        totalGameTime: window.gameActiveTime,
+        totalMiningTime: player.miningTime
+    }
+})
         });
         
         const data = await response.json();
         if (data.success) {
-            console.log('💾 Прогресс сохранён на сервер');
+            
             return true;
         } else {
             console.error('❌ Ошибка сохранения:', data.error);
@@ -2285,8 +2293,6 @@ async function loadUserProfile() {
 }
 
 async function initGame() {
-    console.log('🚀 Инициализация игры...');
-
     const loadingBar = document.getElementById('loadingBar');
     if (loadingBar) loadingBar.style.width = '20%';
 
@@ -2329,7 +2335,6 @@ async function initGame() {
 
     // Игра готова
     window.gameReady = true;
-    console.log('✅ Игра полностью загружена и готова к работе');
 
     // Запускаем интервалы
     setInterval(updateWeather, 10000);
@@ -2349,7 +2354,15 @@ async function initGame() {
     addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
 }
 
-
+// После загрузки с сервера или через 5 секунд – принудительно включаем
+setTimeout(() => {
+    if (!window.gameReady) {
+        window.gameReady = true;
+        console.log('✅ Игра принудительно запущена (fallback после таймаута)');
+        updateUI();
+        recalc();
+    }
+}, 5000);
 
 function initTasks() {
     tasks = [
@@ -2386,9 +2399,7 @@ function initTasks() {
 
     // ТЕПЕРЬ игра готова
     window.gameReady = true;
-    console.log('✅ Игра полностью загружена и готова к работе');
-
-    
+   
     // Запускаем интервалы
     setInterval(updateWeather, 10000);
     setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
@@ -3881,9 +3892,7 @@ if (!window.socket) {
     // ========== ПРИМЕНЕНИЕ НАСТРОЕК ОТ АДМИНА ==========
 function applyBalanceSettings(settings) {
     if (!settings) return;
-    
-    console.log('🔄 Применяем настройки админа:', settings);
-    
+       
     window.balanceSettings = settings;
     
     // Награды
@@ -3922,7 +3931,7 @@ function applyBalanceSettings(settings) {
 // Подписываемся на обновления
 if (typeof socket !== 'undefined') {
     socket.on('economy_update', (data) => {
-        console.log('📡 Получены настройки от сервера:', data);
+    
         applyBalanceSettings(data);
     });
     
@@ -3947,16 +3956,13 @@ if (typeof socket !== 'undefined') {
 
     // ========== ОБРАБОТЧИКИ СОКЕТА ==========
     // Проверяем, что игра получает обновления
-window.socket.on('economy_update', (data) => {
-    console.log('🎯🎯🎯 ИГРА ПОЛУЧИЛА ОБНОВЛЕНИЕ!', data);
+window.socket.on('economy_update', (data) => {    
     window.economySettings = data;
-    
-    // Обновляем локальные настройки в игре
+        // Обновляем локальные настройки в игре
     if (typeof window.updateBalanceSettings === 'function') {
         window.updateBalanceSettings(data);
     }
-    
-    
+        
 });
     
     // Получение обновлений экономики от админа
@@ -3964,21 +3970,17 @@ window.socket.on('economy_update', (data) => {
     location.reload();
 });
 
-
     window.socket.on('economy_update', (settings) => {
-        console.log('💰 Экономика обновлена администратором:', settings);
         window.economySettings = settings;
         
     });
 
     window.socket.on('connect', () => {
-        console.log('✅ Чат подключён к серверу');
         if (currentUsername) {
             window.socket.emit('user_online', currentUsername);
 
         // ========== ОЧИСТКА ЧАТА АДМИНИСТРАТОРОМ ==========
     window.socket.on('chat_cleared_by_admin', () => {
-        console.log('🧹 Чат очищен администратором');
         
         // Очищаем локальный массив сообщений во всех окнах чата
         document.querySelectorAll('.floating-window').forEach(win => {
@@ -4015,11 +4017,9 @@ window.socket.on('economy_update', (data) => {
 if (window.socket) {
     // Обработчик обновления экономических настроек
     window.socket.on('economy_update', (settings) => {
-        console.log('💰 Экономика обновлена:', settings);
 
         // Получение обновлений экономики от админа
 window.socket.on('economy_update', (settings) => {
-    console.log('💰 Экономика обновлена администратором:', settings);
     
     // Сохраняем настройки в глобальные переменные
     window.economySettings = settings;
@@ -4063,13 +4063,11 @@ window.socket.on('economy_update', (settings) => {
     
     // Также можно добавить обработчик для отдельных параметров
     window.socket.on('share_reward_update', (reward) => {
-        console.log('💰 Награда за шару обновлена:', reward);
         window.shareReward = reward;
         addLog(`📊 Награда за шару: ${reward} SOL`, 'info');
     });
     
     window.socket.on('block_reward_update', (reward) => {
-        console.log('🏆 Награда за блок обновлена:', reward);
         window.blockReward = reward;
         addLog(`🏆 Награда за блок: ${reward} SOL`, 'info');
     });
@@ -4146,7 +4144,6 @@ function renderChat(cont, wid) {
         
         // Обработчик истории
         window.socket.on('chat_history', (history) => {
-            console.log('📜 История чата:', history?.length || 0, 'сообщений');
             localChatMsgs = [];
             if (history && Array.isArray(history)) {
                 history.forEach(msg => {
@@ -4163,7 +4160,6 @@ function renderChat(cont, wid) {
         
         // ⚠️ ВАЖНО: Обработчик обычных сообщений (ЕГО НЕ ХВАТАЛО!)
         window.socket.on('chat_message', (data) => {
-            console.log('💬 Новое сообщение:', data.username, data.message);
             localChatMsgs.push({
                 name: data.username,
                 text: data.message,
@@ -4176,7 +4172,6 @@ function renderChat(cont, wid) {
         
         // Обработчик админских сообщений
         window.socket.on('admin_message', (data) => {
-            console.log('📢 Админ:', data.text);
             localChatMsgs.push({
                 name: data.username || '👑 АДМИН',
                 text: data.text,

@@ -19,10 +19,8 @@ if (fs.existsSync(HISTORY_FILE)) {
         const loaded = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
         if (Array.isArray(loaded)) {
             chatHistory = loaded;
-            console.log(`📜 Загружено ${chatHistory.length} сообщений из файла`);
         }
     } catch (err) {
-        console.log('⚠️ Ошибка загрузки истории:', err.message);
     }
 }
 
@@ -30,9 +28,7 @@ if (fs.existsSync(HISTORY_FILE)) {
 function saveHistory() {
     try {
         fs.writeFileSync(HISTORY_FILE, JSON.stringify(chatHistory.slice(-MAX_HISTORY), null, 2));
-        console.log(`💾 Сохранено ${chatHistory.length} сообщений`);
     } catch (err) {
-        console.log('⚠️ Ошибка сохранения:', err.message);
     }
 }
 
@@ -69,8 +65,6 @@ app.use(express.json());
 app.use(express.static(__dirname + '/public'));
 app.use(express.static(__dirname + '/src/public'));
 
-console.log('✅ Supabase подключён:', process.env.SUPABASE_URL);
-
 // Добавляем колонку save_data в таблицу users
 async function addSaveDataColumn() {
     try {
@@ -84,16 +78,11 @@ async function addSaveDataColumn() {
                 .limit(1);
             
             if (alterError && alterError.message.includes('column "save_data" does not exist')) {
-                console.log('⚠️ Нужно добавить колонку save_data вручную в Supabase SQL Editor');
-                console.log('SQL: ALTER TABLE users ADD COLUMN IF NOT EXISTS save_data JSONB;');
             } else {
-                console.log('✅ Колонка save_data уже существует');
             }
         } else {
-            console.log('✅ Колонка save_data добавлена');
         }
     } catch (err) {
-        console.log('⚠️ Не удалось добавить колонку:', err.message);
     }
 }
 addSaveDataColumn();
@@ -122,25 +111,18 @@ const io = socketIo(server, {
 
 // ========== ОБРАБОТЧИКИ SOCKET.IO ==========
 io.on('connection', (socket) => {
-    console.log('🔌 Пользователь подключился:', socket.id);
-
-    socket.emit('economy_update', global.balanceSettings);
-    
+    socket.emit('economy_update', global.balanceSettings); 
     let lastAdminMessages = new Map();
 
     socket.on('clear_chat_for_all', (data) => {
-        console.log('📡 ПОЛУЧЕНО clear_chat_for_all от:', socket.id);
-        
         const token = socket.handshake.auth.token;
         if (!token) {
-            console.log('❌ Нет токена');
             return;
         }
         
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             if (decoded.role !== 'admin') {
-                console.log('❌ Не админ, роль:', decoded.role);
                 return;
             }
             
@@ -149,11 +131,7 @@ io.on('connection', (socket) => {
             
             io.emit('chat_cleared_by_admin');
             io.emit('force_reload');
-            
-            console.log('🧹 Чат очищен, игроки будут перезагружены');
-            
         } catch (err) {
-            console.log('❌ Ошибка токена:', err.message);
         }
     });
     
@@ -178,8 +156,6 @@ io.on('connection', (socket) => {
             text: data.text,
             timestamp: new Date().toISOString()
         });
-        
-        console.log('📢 Админ:', data.text);
     });
     
     socket.on('request_history', () => {
@@ -188,7 +164,6 @@ io.on('connection', (socket) => {
     
     socket.on('user_online', (username) => {
         socket.username = username;
-        console.log('👤 Пользователь в сети:', username);
         const onlineUsers = [];
         for (let [id, s] of io.sockets.sockets) {
             if (s.username) onlineUsers.push(s.username);
@@ -201,13 +176,10 @@ io.on('connection', (socket) => {
         chatHistory.push(data);
         if (chatHistory.length > MAX_HISTORY) chatHistory.shift();
         saveHistory();
-        
-        console.log('💬', data.username + ':', data.message);
         io.emit('chat_message', data);
     });
     
     socket.on('disconnect', () => {
-        console.log('🔌 Пользователь отключился:', socket.id);
         const onlineUsers = [];
         for (let [id, s] of io.sockets.sockets) {
             if (s.username) onlineUsers.push(s.username);
@@ -317,7 +289,6 @@ const isAdmin = (req, res, next) => {
             return next();
         }
     } catch (err) {
-        console.log('❌ Ошибка верификации токена:', err.message);
     }
     
     res.status(403).json({ error: 'Доступ запрещён' });
@@ -430,8 +401,6 @@ app.post('/api/admin/economy', isAdmin, async (req, res) => {
         };
         
         io.emit('economy_update', global.economySettings);
-        
-        console.log('💰 Экономика обновлена:', global.economySettings);
         res.json({ success: true, settings: global.economySettings });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -484,8 +453,7 @@ app.post('/api/admin/balance', isAdmin, async (req, res) => {
         };
         
         io.emit('economy_update', global.balanceSettings);
-        
-        console.log('⚖️ Балансировка обновлена:', global.balanceSettings);
+
         res.json({ success: true, settings: global.balanceSettings });
         
     } catch (err) {
@@ -522,23 +490,23 @@ app.post('/api/game/save', auth, async (req, res) => {
             .from('users')
             .update({
                 balance: data.balance,
-                chips: data.chips,
-                energy: data.energy,
-                base_power: data.basePower,
-                shares: data.shares,
-                blocks: data.blocks,
-                total_shares: data.totalShares,
-                total_blocks: data.totalBlocks,
-                total_earned: data.totalEarned,
-                mining_earned: data.miningEarned,
-                equipment_damage: data.equipmentDamage,
-                inv: data.inv,
-                research: data.research,
-                dust: data.dust,
-                solar: data.solar,
-                power_bank: data.powerBank,
-                save_data: data.save_data,
-                last_active: new Date()
+        chips: data.chips,
+        energy: data.energy,
+        base_power: data.basePower,
+        shares: data.shares,
+        blocks: data.blocks,
+        total_shares: data.totalShares,
+        total_blocks: data.totalBlocks,
+        total_earned: data.totalEarned,
+        mining_earned: data.miningEarned,
+        equipment_damage: data.equipmentDamage,
+        inv: data.inv,
+        research: data.research,
+        dust: data.dust,
+        solar: data.solar,
+        power_bank: data.powerBank,
+        save_data: data.save_data,     
+        last_active: new Date()
             })
             .eq('id', req.userId)
             .select()
@@ -615,7 +583,4 @@ app.post('/api/game/withdraw', auth, async (req, res) => {
 // ========== ЗАПУСК ==========
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Сервер запущен на порту ${PORT}`);
-    console.log('🔌 Socket.IO чат активен');
-    console.log('⚖️ Балансировка загружена:', global.balanceSettings);
 });
