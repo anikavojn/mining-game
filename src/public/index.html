@@ -2674,7 +2674,7 @@ if (!window.gameReady) return;
         toast(`🔧 Ферма спасена!`);
     }
 
-    // ========== ПРОВЕРКА СГОРАНИЯ ФЕРМЫ ==========
+        // ========== ПРОВЕРКА СГОРАНИЯ ФЕРМЫ ==========
     if (player.equipmentDamage >= 100 && !window._farmDestroyed) {
         window._farmDestroyed = true;
         
@@ -2748,36 +2748,47 @@ if (!window.gameReady) return;
     let dustEff = 1 - (player.dust / 100) * 0.3;
     document.getElementById('dustFill').style.width = Math.min(100, player.dust) + '%';
     
+    // ---------- НАЧАЛО ИСПРАВЛЕННОГО БЛОКА ОХЛАЖДЕНИЯ ----------
     // Базовое охлаждение от слайдеров
-let coolEff = (player.cooling.fan * 0.4 + player.cooling.pump * 0.3 + player.cooling.water * 0.3) / 100;
-// Штраф за нестабильное напряжение
-let voltagePenalty = 1;
-if (player.voltage > 13.2 || player.voltage < 10.5) {
-    let penaltyPercent = window.gameBalance?.voltagePen ?? 15;
-    voltagePenalty = 1 - (penaltyPercent / 100);
-    if (Math.random() < 0.02) {
-        addLog(`⚡ Нестабильное напряжение ${player.voltage.toFixed(1)}V! Штраф -${penaltyPercent}% хешрейта`, 'warning');
+    let coolEffBase = (player.cooling.fan * 0.4 + player.cooling.pump * 0.3 + player.cooling.water * 0.3) / 100;
+    
+    // Штраф за нестабильное напряжение
+    let voltagePenalty = 1;
+    if (player.voltage > 13.2 || player.voltage < 10.5) {
+        let penaltyPercent = window.gameBalance?.voltagePen ?? 15;
+        voltagePenalty = 1 - (penaltyPercent / 100);
+        if (Math.random() < 0.02) {
+            addLog(`⚡ Нестабильное напряжение ${player.voltage.toFixed(1)}V! Штраф -${penaltyPercent}% хешрейта`, 'warning');
+        }
     }
-}
-
-// Дополнительное охлаждение от установленного оборудования
-let coolingGearBonus = 0;
-if (player.inv.water_cool) {
-    coolingGearBonus += player.inv.water_cool * 0.05;  // каждый Water Cooling даёт +5% к охлаждению
-}
-if (player.inv.liquid_cooling_pro) {
-    coolingGearBonus += player.inv.liquid_cooling_pro * 0.12;  // каждый Liquid Cooling PRO даёт +12% к охлаждению
-}
-
-// Суммарный коэффициент охлаждения (не может быть больше 1.0)
-coolEff = Math.min(1.0, coolEff + coolingGearBonus);
-    let temp = Math.floor(Math.min(98, Math.max(30, 45 + (player.mining ? (player.basePower / 15) + (player.oc ? 12 : 0) : 0) + (player.voltage - 11) * 3 - coolEff * 15)));
+    
+    // Дополнительное охлаждение от установленного оборудования (реальная мощность охлаждения)
+    let coolingGearBonus = 0;
+    if (player.inv.water_cool) {
+        coolingGearBonus += player.inv.water_cool * 0.5;   // каждый Water Cooling даёт +50% к охлаждению
+    }
+    if (player.inv.liquid_cooling_pro) {
+        coolingGearBonus += player.inv.liquid_cooling_pro * 1.2; // каждый Liquid PRO даёт +120% к охлаждению
+    }
+    
+    // Итоговый коэффициент для хешрейта (ограничен 1.0, чтобы не было сверх-бонуса)
+    let coolEffHash = Math.min(1.0, coolEffBase + coolingGearBonus * 0.2); // ослабляем влияние на хешрейт
+    
+    // Для температуры используем НЕОГРАНИЧЕННУЮ мощность охлаждения
+    let coolingPower = coolEffBase + coolingGearBonus; // может быть больше 1
+    if (coolingPower < 0) coolingPower = 0;
+    
+    // Расчёт температуры: база 45°C + нагрев от мощности + оверклок + напряжение - ОХЛАЖДЕНИЕ
+    let tempRaw = 45 + (player.mining ? (player.basePower / 15) + (player.oc ? 12 : 0) : 0) + (player.voltage - 11) * 3 - coolingPower * 8;
+    // Ограничиваем только снизу (30°C) и сверху (120°C, чтобы не улететь в бесконечность)
+    let temp = Math.floor(Math.min(120, Math.max(30, tempRaw)));
     let tempEl = document.getElementById('tempVal');
     if (tempEl) tempEl.innerText = temp;
+    // ---------- КОНЕЦ ИСПРАВЛЕННОГО БЛОКА ----------
     
     checkAlarmAndOc(temp);
 
-        // Критическое предупреждение о повреждениях (80%+)
+    // Критическое предупреждение о повреждениях (80%+)
     if (player.equipmentDamage > 80 && !window.highDamageWarning && player.mining) {
         window.highDamageWarning = true;
         addLog(`🔴 КРИТИЧЕСКИЙ ИЗНОС! Повреждения ${player.equipmentDamage}%! При 100% ферма сгорит! Срочно делайте ТО!`, 'error');
@@ -2787,32 +2798,31 @@ coolEff = Math.min(1.0, coolEff + coolingGearBonus);
     if (player.equipmentDamage <= 70) window.highDamageWarning = false;
     
     if (player.mining && player.energy > 0) {
-    let ocBonus = player.oc ? 1.2 : 1;
-    let coolBonus = 0.9 + coolEff * 0.2;
-    let weatherBonus = 1 + (player.weather.sun / 100) * 0.1;
-    let poolBonus = 1 + player.poolBonus / 100;
-    let stolenPenalty = 1 - (player.stolen / 100);
-    let damagePenalty = Math.max(0, 1 - (player.equipmentDamage / 100));  // не может быть ниже 0
-    let wiringPenalty = 1 - (player.wiringFaults.filter(f => f).length * 0.05);
-    let dustEff = 1 - (player.dust / 100) * 0.3;
-    
-    // Все штрафы применяются ВСЕГДА, независимо от basePower
-    let finalPenalty = stolenPenalty * damagePenalty * wiringPenalty * dustEff;
-    
-    player.hashPower = Math.floor(player.basePower * ocBonus * player.buffs.hash * coolBonus * weatherBonus * poolBonus * finalPenalty * voltagePenalty);
-    player.hashPower = Math.max(0, player.hashPower);
-} else {
-    player.hashPower = 0;
-}
+        let ocBonus = player.oc ? 1.2 : 1;
+        let coolBonus = 0.9 + coolEffHash * 0.2;  // используем ограниченный коэффициент для хешрейта
+        let weatherBonus = 1 + (player.weather.sun / 100) * 0.1;
+        let poolBonus = 1 + player.poolBonus / 100;
+        let stolenPenalty = 1 - (player.stolen / 100);
+        let damagePenalty = Math.max(0, 1 - (player.equipmentDamage / 100));
+        let wiringPenalty = 1 - (player.wiringFaults.filter(f => f).length * 0.05);
+        let dustEff = 1 - (player.dust / 100) * 0.3;
+        
+        let finalPenalty = stolenPenalty * damagePenalty * wiringPenalty * dustEff;
+        
+        player.hashPower = Math.floor(player.basePower * ocBonus * player.buffs.hash * coolBonus * weatherBonus * poolBonus * finalPenalty * voltagePenalty);
+        player.hashPower = Math.max(0, player.hashPower);
+    } else {
+        player.hashPower = 0;
+    }
     
     let shares = 0;
     if (player.mining && player.energy > 0) {
-    let chance = Math.min(0.35, (player.hashPower / 300) * player.buffs.luck);
-    for (let i = 0; i < 2; i++) {
-        if (Math.random() < chance) {
-            shares++;
-            player.shares++;
-            player.totalShares++;
+        let chance = Math.min(0.35, (player.hashPower / 300) * player.buffs.luck);
+        for (let i = 0; i < 2; i++) {
+            if (Math.random() < chance) {
+                shares++;
+                player.shares++;
+                player.totalShares++;
             
             // ========== ИСПРАВЛЕННОЕ НАЧИСЛЕНИЕ НАГРАД ==========
             // Получаем настройки от админа (или значения по умолчанию)
