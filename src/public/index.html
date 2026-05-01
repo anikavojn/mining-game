@@ -870,20 +870,7 @@ if (title.includes('МОЯ СТАТИСТИКА')) {
             <div class="stats-row"><span>🔧 Чипов добыто:</span><span>${player.chips}</span></div>
         </div>
     `;
-}
-            
-            // Инвентарь
-            if (title.includes('ИНВЕНТАРЬ')) {
-                let items = Object.entries(player.inv).filter(([id, cnt]) => cnt > 0 && rigs[id]);
-                content.innerHTML = `
-                    <div class="stats-content">
-                        ${items.length ? items.map(([id, cnt]) => `<div class="stats-row"><span>${rigs[id].n}</span><span>x${cnt} (${rigs[id].h * cnt} TH/s)</span></div>`).join('') : '<div>Инвентарь пуст</div>'}
-                        <div class="stats-row" style="margin-top:10px;"><span>💰 Баланс:</span><span>${formatBal(player.balance)} SOL</span></div>
-                        <div class="stats-row"><span>🔧 Чипы:</span><span>${Math.floor(player.chips)}</span></div>
-                    </div>
-                `;
-            }
-            
+}          
             // Достижения
             if (title.includes('ДОСТИЖЕНИЯ')) {
                 let achList = [
