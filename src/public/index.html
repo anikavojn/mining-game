@@ -4345,11 +4345,11 @@ function showInventory() {
             listDiv.innerHTML = '<div>Инвентарь пуст</div>';
         } else {
             listDiv.innerHTML = itemsNow.map(([id, cnt]) => {
-                let sellPrice = (rigs[id].cost * 0.5).toFixed(8);
+                let sellPrice = (rigs[id].cost * 0.001).toFixed(8);
                 return `
                     <div class="stats-row" style="justify-content: space-between;">
                         <span><strong>${rigs[id].n}</strong> x${cnt} (${rigs[id].h * cnt} TH/s)</span>
-                        <button class="sell-item-btn" data-id="${id}" data-price="${sellPrice}" style="background:#8a3a3a; border:none; color:white; border-radius:12px; padding:2px 12px; cursor:pointer;">💰 Продать 1</button>
+                        <button class="sell-item-btn" data-id="${id}" data-price="${sellPrice}" style="background:#8a3a3a; border:none; color:white; border-radius:12px; padding:2px 12px; cursor:pointer;">💰 Продать </button>
                     </div>
                 `;
             }).join('');
@@ -5784,7 +5784,7 @@ function updatePowerBankUI() {
     powerBankBtn._hasHandlers = true;
     
     // Подсказка
-    powerBankBtn.title = 'Клик — продать 1 чип (+100 энергии в Power Bank)\nКлавиша E — использовать энергию из Power Bank';
+    powerBankBtn.title = 'Клик — продать  чип (+100 энергии в Power Bank)\nКлавиша E — использовать энергию из Power Bank';
 }
 
 // 5. Обновляем отображение при каждом обновлении UI
