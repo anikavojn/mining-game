@@ -3094,64 +3094,29 @@ function updateWeather() {
 
 function renderRigs() {
     let c = document.getElementById('rigsList');
-    if (!c) {
-        console.warn("renderRigs: rigsList not found");
-        return;
-    }
+    if (!c) return;
     c.innerHTML = '';
-    
     let hasAny = false;
     for (let [id, cnt] of Object.entries(player.inv)) {
         if (cnt > 0 && rigs[id]) {
             hasAny = true;
             let d = document.createElement('div');
             d.className = 'rig-item';
-            let sellPrice = rigs[id].cost * 0.5;
             d.innerHTML = `
                 <div>
                     <span class="rig-name">${rigs[id].n}</span>
                     <span class="rig-count">x${cnt}</span>
                 </div>
                 <div class="rig-hash">+${rigs[id].h * cnt} TH/s</div>
-                <button class="rig-sell" data-id="${id}" data-price="${sellPrice.toFixed(8)}">❗ Продать 1</button>
             `;
             c.appendChild(d);
         }
     }
-    
     if (!hasAny) {
         c.innerHTML = '<div style="text-align:center;padding:20px; color:#ffaa66;">⚠️ НЕТ ОБОРУДОВАНИЯ ⚠️</div>';
     }
-    
     let totalEl = document.getElementById('totalHashPower');
     if (totalEl) totalEl.innerText = player.basePower;
-    
-    // Обработчики кнопок продажи
-    document.querySelectorAll('.rig-sell').forEach(b => {
-        b.onclick = (e) => {
-            e.stopPropagation();
-            let id = b.dataset.id;
-            let pr = parseFloat(b.dataset.price);
-            if (player.inv[id] > 0) {
-                if (confirm(`Продать 1 шт. ${rigs[id].n} за ${pr.toFixed(8)} SOL?`)) {
-                    player.inv[id]--;
-                    player.balance += pr;
-                    // Уменьшаем базовую мощность (если оборудование даёт хешрейт)
-                    player.basePower -= rigs[id]?.h || 0;
-                    // Корректируем, чтобы мощность не ушла в отрицательные значения
-                    if (player.basePower < 0) player.basePower = 0;
-                    addLog(`Продано ${rigs[id].n} за ${pr.toFixed(8)} SOL`, 'success');
-                    renderRigs();       // обновляем список
-                    recalc();           // пересчитываем хешрейт
-                    updateUI();         // обновляем интерфейс
-                    playSuccess();      // звук успеха
-                }
-            } else {
-                addLog(`❌ Нет ${rigs[id].n} для продажи`, 'error');
-                playFail();
-            }
-        };
-    });
 }
 
 document.getElementById('blowBtn').onclick = () => {
@@ -4378,12 +4343,62 @@ function showAchievements() {
 function showInventory() {
     let items = Object.entries(player.inv).filter(([id, cnt]) => cnt > 0 && rigs[id]);
     let win = createWin('📦 ИНВЕНТАРЬ', `
-        <div class="stats-content">
-            ${items.length ? items.map(([id, cnt]) => `<div class="stats-row"><span>${rigs[id].n}</span><span>x${cnt} (${rigs[id].h * cnt} TH/s)</span></div>`).join('') : '<div>Инвентарь пуст</div>'}
+        <div class="stats-content" id="inventoryContent">
+            <div id="inventoryList"></div>
             <div class="stats-row" style="margin-top:10px;"><span>💰 Баланс:</span><span>${formatBal(player.balance)} SOL</span></div>
             <div class="stats-row"><span>🔧 Чипы:</span><span>${Math.floor(player.chips)}</span></div>
         </div>
-    `, 380, 380, 240, 200);
+    `, 420, 450, 240, 200);
+    
+    function renderInventory() {
+        let listDiv = win.querySelector('#inventoryList');
+        if (!listDiv) return;
+        let itemsNow = Object.entries(player.inv).filter(([id, cnt]) => cnt > 0 && rigs[id]);
+        if (itemsNow.length === 0) {
+            listDiv.innerHTML = '<div>Инвентарь пуст</div>';
+        } else {
+            listDiv.innerHTML = itemsNow.map(([id, cnt]) => {
+                let sellPrice = (rigs[id].cost * 0.5).toFixed(8);
+                return `
+                    <div class="stats-row" style="justify-content: space-between;">
+                        <span><strong>${rigs[id].n}</strong> x${cnt} (${rigs[id].h * cnt} TH/s)</span>
+                        <button class="sell-item-btn" data-id="${id}" data-price="${sellPrice}" style="background:#8a3a3a; border:none; color:white; border-radius:12px; padding:2px 12px; cursor:pointer;">💰 Продать 1</button>
+                    </div>
+                `;
+            }).join('');
+        }
+        // обновляем баланс и чипы внизу
+        let balanceSpan = win.querySelector('.stats-row span:last-child');
+        if (balanceSpan) balanceSpan.innerText = formatBal(player.balance);
+        let chipsSpan = win.querySelectorAll('.stats-row span:last-child')[1];
+        if (chipsSpan) chipsSpan.innerText = Math.floor(player.chips);
+        
+        // обработчики кнопок (без confirm)
+        win.querySelectorAll('.sell-item-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                let id = btn.dataset.id;
+                let price = parseFloat(btn.dataset.price);
+                if (player.inv[id] > 0) {
+                    player.inv[id]--;
+                    player.balance += price;
+                    player.basePower -= rigs[id]?.h || 0;
+                    if (player.basePower < 0) player.basePower = 0;
+                    addLog(`Продано ${rigs[id].n} за ${price} SOL`, 'success');
+                    playSuccess();
+                    renderInventory();     // обновляем список внутри окна
+                    if (typeof recalc === 'function') recalc();
+                    if (typeof updateUI === 'function') updateUI();
+                    if (typeof renderRigs === 'function') renderRigs(); // обновить ферму
+                } else {
+                    addLog(`❌ Нет ${rigs[id].n} для продажи`, 'error');
+                    playFail();
+                }
+            };
+        });
+    }
+    
+    renderInventory();
 }
 
 function showResearch() {
