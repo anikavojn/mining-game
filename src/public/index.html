@@ -3113,6 +3113,7 @@ function renderRigs() {
                     <span class="rig-count">x${cnt}</span>
                 </div>
                 <div class="rig-hash">+${rigs[id].h * cnt} TH/s</div>
+                <button class="rig-sell" data-id="${id}" data-price="${sellPrice.toFixed(8)}">❗ Продать 1</button>
             `;
             c.appendChild(d);
         }
@@ -3132,14 +3133,22 @@ function renderRigs() {
             let id = b.dataset.id;
             let pr = parseFloat(b.dataset.price);
             if (player.inv[id] > 0) {
-                player.inv[id]--;
-                player.balance += pr;
-                player.basePower -= rigs[id]?.h || 0;
-                addLog(`Продано ${rigs[id].n} за ${pr.toFixed(8)} SOL`, 'info');
-                renderRigs();
-                recalc();
-                updateUI();
-                playClick();
+                if (confirm(`Продать 1 шт. ${rigs[id].n} за ${pr.toFixed(8)} SOL?`)) {
+                    player.inv[id]--;
+                    player.balance += pr;
+                    // Уменьшаем базовую мощность (если оборудование даёт хешрейт)
+                    player.basePower -= rigs[id]?.h || 0;
+                    // Корректируем, чтобы мощность не ушла в отрицательные значения
+                    if (player.basePower < 0) player.basePower = 0;
+                    addLog(`Продано ${rigs[id].n} за ${pr.toFixed(8)} SOL`, 'success');
+                    renderRigs();       // обновляем список
+                    recalc();           // пересчитываем хешрейт
+                    updateUI();         // обновляем интерфейс
+                    playSuccess();      // звук успеха
+                }
+            } else {
+                addLog(`❌ Нет ${rigs[id].n} для продажи`, 'error');
+                playFail();
             }
         };
     });
