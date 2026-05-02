@@ -1808,38 +1808,196 @@ async function loadGameFromServer() {
             headers: { 'Authorization': `Bearer ${window.token}` }
         });
         const data = await res.json();
-        
         if (data.success && data.user) {
+            // ✅ Проверяем, что сервер вернул данные ИМЕННО нашего пользователя
+            const localUser = JSON.parse(localStorage.getItem('mining_user') || '{}');
             
-            // ========== ОБНОВЛЯЕМ ИМЯ В ИНТЕРФЕЙСЕ ==========
-            const usernameSpan = document.getElementById('profileUsername');
-            if (usernameSpan && data.user.username) {
-                usernameSpan.innerText = data.user.username;
+            if (localUser.id && data.user.id && localUser.id !== data.user.id) {
+                console.warn('⚠️ Сервер вернул ЧУЖОЙ профиль! Использую локальные данные.');
+                // Загружаем из localStorage то, что сохранили при регистрации
+                const localSave = localStorage.getItem('miningSave');
+                if (localSave) {
+                    const parsed = JSON.parse(localSave);
+                    Object.assign(player, {
+                        balance: parsed.balance ?? 0,
+                        chips: parsed.chips ?? 0,
+                        energy: parsed.energy ?? 100,
+                        maxEnergy: parsed.maxEnergy ?? 100,
+                        basePower: parsed.basePower ?? 2,
+                        voltage: parsed.voltage ?? 11.8,
+                        oc: parsed.oc ?? false,
+                        shares: parsed.shares ?? 0,
+                        blocks: parsed.blocks ?? 0,
+                        totalShares: parsed.totalShares ?? 0,
+                        totalBlocks: parsed.totalBlocks ?? 0,
+                        totalEarned: parsed.totalEarned ?? 0,
+                        miningEarned: parsed.miningEarned ?? 0,
+                        equipmentDamage: parsed.equipmentDamage ?? 0,
+                        inv: parsed.inv ?? { cpu_miner: 1 },
+                        research: parsed.research ?? { gpu: false, asic: false, highEnd: false, industrial: false },
+                        dust: parsed.dust ?? 0,
+                        solar: parsed.solar ?? 0,
+                        powerBank: parsed.powerBank ?? 0,
+                        pvpBonus: parsed.pvpBonus ?? 0,
+                        researchTimers: parsed.researchTimers ?? {},
+                        researchCompleted: parsed.researchCompleted ?? {}
+                    });
+                    console.log('✅ Загружен локальный сейв (сервер вернул чужие данные)');
+                }
+            } else {
+                // ✅ ID совпадают — применяем данные с сервера
+                applyServerData(data.user);
+                // Обновляем локального пользователя
+                localStorage.setItem('mining_user', JSON.stringify({
+                    id: data.user.id,
+                    username: data.user.username,
+                    balance: data.user.balance,
+                    chips: data.user.chips,
+                    base_power: data.user.base_power
+                }));
+                console.log('✅ Загружен профиль с сервера');
             }
-            
-            const profileBtn = document.getElementById('profileBtn');
-            if (profileBtn && data.user.username) {
-                profileBtn.innerHTML = `<span></span> <span id="profileUsername">${data.user.username}</span> <span>▼</span>`;
-            }
-            
-            
-            // Обновляем баланс на экране
-            const balanceEl = document.getElementById('balanceLarge');
-            if (balanceEl) balanceEl.innerText = player.balance.toFixed(8);
-            
-            const chipsEl = document.getElementById('chipsCount');
-            if (chipsEl) chipsEl.innerText = Math.floor(player.chips);
-            
-            if (typeof updateUI === 'function') updateUI();
-            if (typeof renderRigs === 'function') renderRigs();
-            if (typeof recalc === 'function') recalc();
-            
-            return true;
         }
+        
+        // ========== ОБНОВЛЯЕМ ИМЯ В ИНТЕРФЕЙСЕ ==========
+        const usernameSpan = document.getElementById('profileUsername');
+        if (usernameSpan && data.user.username) {
+            usernameSpan.innerText = data.user.username;
+        }
+        
+        const profileBtn = document.getElementById('profileBtn');
+        if (profileBtn && data.user.username) {
+            profileBtn.innerHTML = `<span></span> <span id="profileUsername">${data.user.username}</span> <span>▼</span>`;
+        }
+        
+        // Обновляем баланс на экране
+        const balanceEl = document.getElementById('balanceLarge');
+        if (balanceEl) balanceEl.innerText = player.balance.toFixed(8);
+        
+        const chipsEl = document.getElementById('chipsCount');
+        if (chipsEl) chipsEl.innerText = Math.floor(player.chips);
+        
+        if (typeof updateUI === 'function') updateUI();
+        if (typeof renderRigs === 'function') renderRigs();
+        if (typeof recalc === 'function') recalc();
+        
+        return true;
     } catch(e) {
         console.error('Ошибка загрузки:', e);
     }
     return false;
+}
+
+function applyServerData(userData) {
+    // Применяем данные с сервера к player
+    player.balance = Number(userData.balance) || 0;
+    player.chips = Number(userData.chips) || 0;
+    player.basePower = Number(userData.base_power) || 2;
+    player.energy = Number(userData.energy) || 100;
+    player.maxEnergy = Number(userData.max_energy) || 100;
+    player.shares = Number(userData.shares) || 0;
+    player.blocks = Number(userData.blocks) || 0;
+    player.totalShares = Number(userData.total_shares) || 0;
+    player.totalBlocks = Number(userData.total_blocks) || 0;
+    player.totalEarned = Number(userData.total_earned) || 0;
+    player.miningEarned = Number(userData.mining_earned) || 0;
+    player.equipmentDamage = Number(userData.equipment_damage) || 0;
+    player.dust = Number(userData.dust) || 0;
+    player.solar = Number(userData.solar) || 0;
+    player.powerBank = Number(userData.power_bank) || 0;
+    player.pvpBonus = Number(userData.pvp_bonus) || 0;
+    
+    // Инвентарь и исследования
+    if (userData.inv && typeof userData.inv === 'object') {
+        player.inv = { ...userData.inv };
+    }
+    if (userData.research && typeof userData.research === 'object') {
+        player.research = { ...userData.research };
+    }
+    
+    // save_data (если есть)
+    if (userData.save_data && typeof userData.save_data === 'object') {
+        const sd = userData.save_data;
+        player.balance = Number(sd.balance) ?? player.balance;
+        player.chips = Number(sd.chips) ?? player.chips;
+        player.energy = Number(sd.energy) ?? player.energy;
+        player.maxEnergy = Number(sd.maxEnergy) ?? player.maxEnergy;
+        player.basePower = Number(sd.basePower) ?? player.basePower;
+        player.voltage = Number(sd.voltage) ?? player.voltage;
+        player.oc = !!sd.oc;
+        player.shares = Number(sd.shares) ?? player.shares;
+        player.blocks = Number(sd.blocks) ?? player.blocks;
+        player.totalShares = Number(sd.totalShares) ?? player.totalShares;
+        player.totalBlocks = Number(sd.totalBlocks) ?? player.totalBlocks;
+        player.totalEarned = Number(sd.totalEarned) ?? player.totalEarned;
+        player.miningEarned = Number(sd.miningEarned) ?? player.miningEarned;
+        player.equipmentDamage = Number(sd.equipmentDamage) ?? player.equipmentDamage;
+        player.dust = Number(sd.dust) ?? player.dust;
+        player.solar = Number(sd.solar) ?? player.solar;
+        player.powerBank = Number(sd.powerBank) ?? player.powerBank;
+        player.pvpBonus = Number(sd.pvpBonus) ?? player.pvpBonus;
+        if (sd.inv && typeof sd.inv === 'object') player.inv = { ...sd.inv };
+        if (sd.research && typeof sd.research === 'object') player.research = { ...sd.research };
+        if (sd.researchTimers) player.researchTimers = { ...sd.researchTimers };
+        if (sd.researchCompleted) player.researchCompleted = { ...sd.researchCompleted };
+    }
+}
+
+
+
+function applyServerData(userData) {
+    // Применяем данные с сервера к player
+    player.balance = Number(userData.balance) || 0;
+    player.chips = Number(userData.chips) || 0;
+    player.basePower = Number(userData.base_power) || 2;
+    player.energy = Number(userData.energy) || 100;
+    player.maxEnergy = Number(userData.max_energy) || 100;
+    player.shares = Number(userData.shares) || 0;
+    player.blocks = Number(userData.blocks) || 0;
+    player.totalShares = Number(userData.total_shares) || 0;
+    player.totalBlocks = Number(userData.total_blocks) || 0;
+    player.totalEarned = Number(userData.total_earned) || 0;
+    player.miningEarned = Number(userData.mining_earned) || 0;
+    player.equipmentDamage = Number(userData.equipment_damage) || 0;
+    player.dust = Number(userData.dust) || 0;
+    player.solar = Number(userData.solar) || 0;
+    player.powerBank = Number(userData.power_bank) || 0;
+    player.pvpBonus = Number(userData.pvp_bonus) || 0;
+    
+    // Инвентарь и исследования
+    if (userData.inv && typeof userData.inv === 'object') {
+        player.inv = { ...userData.inv };
+    }
+    if (userData.research && typeof userData.research === 'object') {
+        player.research = { ...userData.research };
+    }
+    
+    // save_data (если есть)
+    if (userData.save_data && typeof userData.save_data === 'object') {
+        const sd = userData.save_data;
+        player.balance = Number(sd.balance) ?? player.balance;
+        player.chips = Number(sd.chips) ?? player.chips;
+        player.energy = Number(sd.energy) ?? player.energy;
+        player.maxEnergy = Number(sd.maxEnergy) ?? player.maxEnergy;
+        player.basePower = Number(sd.basePower) ?? player.basePower;
+        player.voltage = Number(sd.voltage) ?? player.voltage;
+        player.oc = !!sd.oc;
+        player.shares = Number(sd.shares) ?? player.shares;
+        player.blocks = Number(sd.blocks) ?? player.blocks;
+        player.totalShares = Number(sd.totalShares) ?? player.totalShares;
+        player.totalBlocks = Number(sd.totalBlocks) ?? player.totalBlocks;
+        player.totalEarned = Number(sd.totalEarned) ?? player.totalEarned;
+        player.miningEarned = Number(sd.miningEarned) ?? player.miningEarned;
+        player.equipmentDamage = Number(sd.equipmentDamage) ?? player.equipmentDamage;
+        player.dust = Number(sd.dust) ?? player.dust;
+        player.solar = Number(sd.solar) ?? player.solar;
+        player.powerBank = Number(sd.powerBank) ?? player.powerBank;
+        player.pvpBonus = Number(sd.pvpBonus) ?? player.pvpBonus;
+        if (sd.inv && typeof sd.inv === 'object') player.inv = { ...sd.inv };
+        if (sd.research && typeof sd.research === 'object') player.research = { ...sd.research };
+        if (sd.researchTimers) player.researchTimers = { ...sd.researchTimers };
+        if (sd.researchCompleted) player.researchCompleted = { ...sd.researchCompleted };
+    }
 }
 
 // Сохранение прогресса на сервер
@@ -2204,15 +2362,47 @@ function saveGame() {
 
 function loadGame() {
     const saved = localStorage.getItem('miningSave');
-    if (saved && typeof player !== 'undefined') {
+    if (saved) {
         try {
             const data = JSON.parse(saved);
-            Object.assign(player, data);
-        } catch(e) {
-            console.error('Ошибка загрузки из localStorage:', e);
+            // ✅ Проверяем, что это валидные данные
+            if (data && typeof data === 'object' && 'balance' in data) {
+                // Безопасно применяем, только существующие поля
+                const safeFields = [
+                    'balance', 'chips', 'energy', 'maxEnergy', 'basePower',
+                    'voltage', 'oc', 'shares', 'blocks', 'totalShares',
+                    'totalBlocks', 'totalEarned', 'miningEarned',
+                    'equipmentDamage', 'dust', 'solar', 'powerBank', 'pvpBonus',
+                    'inv', 'research', 'researchTimers', 'researchCompleted'
+                ];
+                let applied = false;
+                for (const key of safeFields) {
+                    if (key in data) {
+                        if (key === 'inv' || key === 'research' || key === 'researchTimers' || key === 'researchCompleted') {
+                            if (typeof data[key] === 'object' && data[key] !== null) {
+                                player[key] = { ...data[key] };
+                                applied = true;
+                            }
+                        } else {
+                            player[key] = data[key];
+                            applied = true;
+                        }
+                    }
+                }
+                if (applied) {
+                    console.log('✅ Локальный сейв загружен');
+                } else {
+                    console.warn('⚠️ Локальный сейв пуст или повреждён');
+                }
+            }
+        } catch (e) {
+            console.error('❌ Ошибка загрузки сейва:', e);
+            // Повреждённый сейв — удаляем
+            localStorage.removeItem('miningSave');
         }
     }
 }
+
 
 async function loadUserProfile() {
     if (typeof token !== 'undefined' && token) {

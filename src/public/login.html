@@ -232,6 +232,49 @@ localStorage.setItem('mining_token', data.token);
 }
     
     async function doRegister() {
+
+// Принудительно чистим весь старый прогресс
+localStorage.removeItem('miningSave');
+localStorage.removeItem('mining_user');
+localStorage.removeItem('mining_token');
+
+// Устанавливаем СТАРТОВЫЙ прогресс сразу в localStorage
+// Чтобы даже если сервер вернёт кривые данные — игра стартует с нуля
+const freshSave = {
+    balance: 0.00000000,
+    chips: 0,
+    energy: 100,
+    maxEnergy: 100,
+    basePower: 2,
+    voltage: 11.8,
+    oc: false,
+    shares: 0,
+    blocks: 0,
+    totalShares: 0,
+    totalBlocks: 0,
+    totalEarned: 0,
+    miningEarned: 0,
+    equipmentDamage: 0,
+    inv: { cpu_miner: 1 },
+    research: { gpu: false, asic: false, highEnd: false, industrial: false },
+    dust: 0,
+    solar: 0,
+    powerBank: 0,
+    pvpBonus: 0,
+    researchTimers: {},
+    researchCompleted: {}
+};
+
+// Сохраняем свежий прогресс
+localStorage.setItem('miningSave', JSON.stringify(freshSave));
+localStorage.setItem('mining_user', JSON.stringify({
+    id: 'pending',  // временно, пока сервер не вернёт настоящий
+    username: username,
+    balance: 0,
+    chips: 0,
+    base_power: 2
+}));
+
     const username = document.getElementById('regUsername').value.trim();
     const email = document.getElementById('regEmail').value.trim();
     const password = document.getElementById('regPassword').value;
