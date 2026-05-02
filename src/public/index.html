@@ -1886,7 +1886,6 @@ async function loadGameFromServer() {
     }
     return false;
 }
-
 function applyServerData(userData) {
     // Применяем данные с сервера к player
     player.balance = Number(userData.balance) || 0;
@@ -1939,9 +1938,22 @@ function applyServerData(userData) {
         if (sd.research && typeof sd.research === 'object') player.research = { ...sd.research };
         if (sd.researchTimers) player.researchTimers = { ...sd.researchTimers };
         if (sd.researchCompleted) player.researchCompleted = { ...sd.researchCompleted };
+
+        // ✅ НОВЫЕ ПОЛЯ
+        if (sd.totalGameTime !== undefined) {
+            window.gameActiveTime = Number(sd.totalGameTime) || 0;
+        }
+        if (sd.totalMiningTime !== undefined) {
+            player.miningTime = Number(sd.totalMiningTime) || 0;
+        }
+        if (sd.firewall !== undefined) {
+            player.firewall = !!sd.firewall;
+        }
+        if (sd.pool !== undefined) {
+            player.pool = sd.pool || null;
+        }
     }
 }
-
 // Сохранение прогресса на сервер
 async function saveGameToServer() {
     window.token = localStorage.getItem('mining_token');
@@ -1986,7 +1998,9 @@ async function saveGameToServer() {
                     researchTimers: player.researchTimers,
                     researchCompleted: player.researchCompleted,
                     totalGameTime: window.gameActiveTime,
-                    totalMiningTime: player.miningTime
+                    totalMiningTime: player.miningTime,
+                    firewall: player.firewall ?? false,    // ← добавил
+                    pool: player.pool ?? null             // ← добавил
                 }
             })
         });
@@ -2023,7 +2037,8 @@ function loadGame() {
                     'voltage', 'oc', 'shares', 'blocks', 'totalShares',
                     'totalBlocks', 'totalEarned', 'miningEarned',
                     'equipmentDamage', 'dust', 'solar', 'powerBank', 'pvpBonus',
-                    'inv', 'research', 'researchTimers', 'researchCompleted'
+                    'inv', 'research', 'researchTimers', 'researchCompleted',
+                    'totalGameTime', 'totalMiningTime', 'firewall', 'pool'   // ✅ добавили
                 ];
                 let applied = false;
                 for (const key of safeFields) {
@@ -2038,6 +2053,13 @@ function loadGame() {
                             applied = true;
                         }
                     }
+                }
+                // ✅ Синхронизация с глобальными переменными
+                if ('totalGameTime' in data) {
+                    window.gameActiveTime = Number(data.totalGameTime) || 0;
+                }
+                if ('totalMiningTime' in data) {
+                    player.miningTime = Number(data.totalMiningTime) || 0;
                 }
                 if (applied) {
                     console.log('✅ Локальный сейв загружен');
@@ -2262,6 +2284,7 @@ function updatePlayerList() {
 }
 
 // ========== ГЛОБАЛЬНЫЕ СОБЫТИЯ ==========
+
 const eventTypes = [
     { icon: "🌩️", n: "ГРОЗА", dur: 25, d: "Скачки напряжения! Снизьте напряжение до 11V!", act: "voltage", chk: () => player.voltage <= 11.2, succ: "✅ Напряжение снижено!", fail: "💥 Потеряно 20% мощности!", eff: () => { player.basePower = Math.max(2, player.basePower * 0.8); recalc(); } },
     { icon: "⚡", n: "ЭНЕРГОКРИЗИС", dur: 25, d: "Резкий скачок цен! Выключите PUMP!", act: "switch", id: "pump", chk: () => !document.getElementById('pump').checked, succ: "✅ PUMP выключен!", fail: "💰 ШТРАФ 15% БАЛАНСА!", eff: () => { player.balance *= 0.85; } },
@@ -2412,7 +2435,6 @@ function startTraderSystem() {
 }
 
 // ========== ДОПОЛНИТЕЛЬНЫЕ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
-
 window.bonusTrigger = false;
 window.btnTrigger = null;
 
@@ -2480,7 +2502,6 @@ async function initGame() {
     addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
     addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
 }
-
 // Fallback: если по какой-то причине игра не запустилась через 5 секунд
 setTimeout(() => {
     if (!window.gameReady) {
