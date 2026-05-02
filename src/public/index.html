@@ -2107,6 +2107,315 @@ function updateGauge(gaugeId, percent, valueId) {
     }
 }
 
+// ========== ОХЛАЖДЕНИЕ ==========
+let fanSlider = document.getElementById('coolFanSlider');
+let pumpSlider = document.getElementById('coolPumpSlider');
+let waterSlider = document.getElementById('coolWaterSlider');
+let coolingLed = document.getElementById('coolingLed');
+let coolingRisk = document.getElementById('coolingRisk');
+
+function updateCooling() {
+    player.cooling.fan = parseInt(fanSlider.value);
+    player.cooling.pump = parseInt(pumpSlider.value);
+    player.cooling.water = parseInt(waterSlider.value);
+    let efficiency = (player.cooling.fan * 0.4 + player.cooling.pump * 0.3 + player.cooling.water * 0.3) / 100;
+    let risk = Math.max(0, (100 - (player.cooling.fan + player.cooling.pump + player.cooling.water) / 3) / 2);
+    coolingRisk.innerHTML = `⚠️ Риск перегрева: ${Math.floor(risk)}%`;
+    coolingLed.style.background = `#44aaff`;
+}
+
+if (fanSlider) fanSlider.addEventListener('input', updateCooling);
+if (pumpSlider) pumpSlider.addEventListener('input', updateCooling);
+if (waterSlider) waterSlider.addEventListener('input', updateCooling);
+
+// ========== ПРОВОДКА ==========
+let lastWiringFaultTime = 0;
+
+function updateWiringDisplay() {
+    let grid = document.getElementById('wiringGrid');
+    if (!grid) return;
+    let ports = ['CPU', 'GPU', 'RAM', 'PSU', 'COOL', 'NET'];
+    grid.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+        let port = document.createElement('div');
+        port.className = 'wiring-port';
+        if (player.wiringFaults[i]) port.classList.add('fault');
+        port.innerHTML = `<div class="port-icon">${['🔌','⚡','💾','⚙️','❄️','🌐'][i]}</div><div class="port-label">${ports[i]}</div>`;
+        port.onclick = () => fixWiringPort(i);
+        grid.appendChild(port);
+    }
+    let faultCount = player.wiringFaults.filter(f => f).length;
+    let penalty = faultCount * 5;
+    let statusEl = document.getElementById('wiringStatus');
+    if (statusEl) statusEl.innerHTML = faultCount === 0 ? '✅ Все провода исправны' : `⚠️ ${faultCount} неисправных проводов (штраф -${penalty}% хешрейта)`;
+}
+
+function fixWiringPort(index) {
+    if (!player.wiringFaults[index]) {
+        toast(`🔌 Порт ${['CPU','GPU','RAM','PSU','COOL','NET'][index]} уже исправен`);
+        return;
+    }
+    let cost = window.gameBalance?.repairCost ?? 0.00000001;
+    let chipCost = window.gameBalance?.repairChips ?? 2;
+    if (player.balance >= cost && player.chips >= chipCost) {
+        player.balance -= cost;
+        player.chips -= chipCost;
+        player.wiringFaults[index] = false;
+        addLog(`🔧 Починен порт ${['CPU','GPU','RAM','PSU','COOL','NET'][index]} (-${cost.toFixed(3)} SOL, -${chipCost} чипов)`, 'success');
+        playSuccess();
+        updateWiringDisplay();
+    } else {
+        addLog(`❌ Недостаточно ресурсов для ремонта (нужно ${cost.toFixed(3)} SOL + ${chipCost} чипов)`, 'error');
+    }
+}
+
+function randomWiringFault() {
+    let now = Date.now();
+    if (now - lastWiringFaultTime < 1200000) return;
+    if (Math.random() < 0.08) {
+        let faultIndex = Math.floor(Math.random() * 6);
+        if (!player.wiringFaults[faultIndex]) {
+            player.wiringFaults[faultIndex] = true;
+            lastWiringFaultTime = now;
+            let faultCount = player.wiringFaults.filter(f => f).length;
+            addLog(`⚠️ Оборвался провод в порте ${['CPU','GPU','RAM','PSU','COOL','NET'][faultIndex]}! Штраф -${faultCount * 5}% хешрейта!`, 'warning');
+            toast(`⚠️ Оборвался провод! -${faultCount * 5}% хешрейта`);
+            updateWiringDisplay();
+            playFail();
+        }
+    }
+}
+
+// ========== PVP ==========
+let lastPvpAttack = 0;
+const PVP_COOLDOWN = 3600000; // 1 час
+
+function steal(target) {
+    if (!player.mining) {
+        toast(`⛔ Майнинг выключен! Включи MINER, чтобы атаковать.`);
+        playFail();
+        return;
+    }
+    
+    let now = Date.now();
+    if (now - lastPvpAttack < PVP_COOLDOWN) {
+        let remaining = Math.ceil((PVP_COOLDOWN - (now - lastPvpAttack)) / 1000);
+        let minutes = Math.floor(remaining / 60);
+        let seconds = remaining % 60;
+        toast(`⏱️ Следующая атака через ${minutes}м ${seconds}с.`);
+        playClick();
+        return;
+    }
+    
+    lastPvpAttack = now;
+    
+    let baseChance = window.gameBalance?.pvpChance ?? 35;
+    let chance = Math.max(0, Math.min(100, baseChance + player.hashPower / 200 - target.def / 2));
+    let succ = Math.random() * 100 < chance;
+    let stealPct = (window.gameBalance?.pvpFailPen ?? 15) / 100;
+    
+    if (succ) {
+        let stolen = Math.floor(target.pw * stealPct);
+        let oldPower = player.basePower;
+        player.basePower = Math.max(2, player.basePower + stolen);
+        player.pvpBonus = (player.pvpBonus || 0) + stolen;
+        target.pw = Math.max(10, target.pw - stolen);
+        player.stolen = Math.min(40, player.stolen + (stolen / player.basePower * 100));
+        
+        recalc();
+        updateUI();
+        renderRigs();
+        
+        addLog(`✅ КРАЖА УСПЕШНА! +${stolen} TH/s (было ${oldPower}, стало ${player.basePower})`, 'success');
+        playSuccess();
+        toast(`✅ +${stolen} TH/s!`);
+    } else {
+        let penalty = (window.gameBalance?.pvpFailPen ?? 15) / 100;
+        let lostPower = Math.floor(player.basePower * penalty);
+        let oldPower = player.basePower;
+        let actualLost = Math.max(1, lostPower);
+        player.basePower = Math.max(2, player.basePower - actualLost);
+        
+        if (player.pvpBonus) {
+            player.pvpBonus = Math.max(0, player.pvpBonus - actualLost);
+        }
+        
+        let damage = Math.floor(penalty * 40);
+        player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
+        
+        recalc();
+        updateUI();
+        renderRigs();
+        
+        addLog(`💀 КРАЖА ПРОВАЛИЛАСЬ! Потеряно ${actualLost} TH/s (было ${oldPower}, стало ${player.basePower})`, 'error');
+        playFail();
+        toast(`💀 ПРОВАЛ! -${actualLost} TH/s!`);
+    }
+    updatePlayerList();
+}
+
+function updatePlayerList() {
+    let c = document.getElementById('playerList');
+    if (!c) return;
+    c.innerHTML = otherPlayers.map(p => `<div class="pvp-player"><div><span class="pvp-player-name">${p.n}</span><br><span style="font-size:10px;">${p.pw} TH/s | Защита: ${p.def}%</span></div><button class="steal-button" data-name="${p.n}" data-power="${p.pw}" data-defense="${p.def}">🕵️ КРАСТЬ</button></div>`).join('');
+    document.querySelectorAll('.steal-button').forEach(b => b.onclick = () => steal({ name: b.dataset.name, pw: parseInt(b.dataset.power), def: parseInt(b.dataset.defense) }));
+}
+
+// ========== ГЛОБАЛЬНЫЕ СОБЫТИЯ ==========
+const eventTypes = [
+    { icon: "🌩️", n: "ГРОЗА", dur: 25, d: "Скачки напряжения! Снизьте напряжение до 11V!", act: "voltage", chk: () => player.voltage <= 11.2, succ: "✅ Напряжение снижено!", fail: "💥 Потеряно 20% мощности!", eff: () => { player.basePower = Math.max(2, player.basePower * 0.8); recalc(); } },
+    { icon: "⚡", n: "ЭНЕРГОКРИЗИС", dur: 25, d: "Резкий скачок цен! Выключите PUMP!", act: "switch", id: "pump", chk: () => !document.getElementById('pump').checked, succ: "✅ PUMP выключен!", fail: "💰 ШТРАФ 15% БАЛАНСА!", eff: () => { player.balance *= 0.85; } },
+    { icon: "🔥", n: "ПЕРЕГРЕВ", dur: 25, d: "Температура зашкаливает! Включите FAN!", act: "switch", id: "fan", chk: () => document.getElementById('fan').checked, succ: "✅ Вентиляторы охладили!", fail: "🔥 Сгорело 20% оборудования!", eff: () => { let items = Object.entries(player.inv).filter(([id, c]) => c > 0 && rigs[id]?.h); if (items.length) { let [id, cnt] = items[Math.floor(Math.random() * items.length)], lost = Math.ceil(cnt * 0.2); player.inv[id] = Math.max(0, cnt - lost); player.basePower -= rigs[id].h * lost; addLog(`🔥 Сгорело ${lost} шт. ${rigs[id].n}!`, 'error'); } recalc(); } },
+    { icon: "🕵️", n: "ХАКЕРСКАЯ АТАКА", dur: 20, d: "Активируйте ФАЙРВОЛ в защите!", act: "button", id: "firewallBtn", chk: () => player.firewall, succ: "✅ Файрвол отразил атаку!", fail: "💀 Потеряно 25% баланса и 15% мощности!", eff: () => { player.balance *= 0.75; player.basePower = Math.max(2, player.basePower * 0.85); recalc(); } },
+    { icon: "📉", n: "ОБВАЛ КРИПТЫ", dur: 30, d: "Курс SOL рухнул! Отключите OC!", act: "switch", id: "overclock", chk: () => !document.getElementById('overclock').checked, succ: "✅ OC отключён!", fail: "💸 ПОТЕРЯНО 30% БАЛАНСА!", eff: () => { player.balance *= 0.7; } }
+];
+
+function showEvent(ev) {
+    let old = document.querySelector('.event-notification');
+    if (old) old.remove();
+    playAlert();
+    let d = document.createElement('div');
+    d.className = 'event-notification';
+    d.innerHTML = `<div class="event-icon">${ev.icon}</div><div class="event-name">⚠️ ${ev.n} ⚠️</div><div class="event-desc">${ev.d}</div><div class="event-timer" id="evTimer">${ev.dur}</div><div class="event-action">✅ НУЖНО: ${ev.act === 'voltage' ? 'СНИЗИТЬ НАПРЯЖЕНИЕ ДО 11V' : ev.act === 'switch' ? 'ПЕРЕКЛЮЧИТЬ ТУМБЛЕР ' + ev.id.toUpperCase() : 'НАЖАТЬ КНОПКУ В ОКНЕ ЗАЩИТЫ'}</div><button id="resolveBtn" class="resolve-btn">✅ РЕШИТЬ</button>`;
+    document.body.appendChild(d);
+    return d;
+}
+
+function triggerEvent() {
+    if (activeEvent || !player.mining) return;
+    let ev = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+    activeEvent = ev;
+    let not = showEvent(ev), timer = not.querySelector('#evTimer'), btn = not.querySelector('#resolveBtn'), tLeft = ev.dur, resolved = false;
+    let interval = setInterval(() => {
+        tLeft--;
+        if (timer) timer.innerText = tLeft;
+        if (tLeft <= 0 && !resolved) {
+            clearInterval(interval);
+            btn.disabled = true;
+            btn.classList.add('disabled');
+            btn.innerText = '⌛ ВРЕМЯ ВЫШЛО';
+            addLog(ev.fail, 'error');
+            playFail();
+            toast(ev.fail);
+            if (ev.eff) ev.eff();
+            setTimeout(() => { if (not.parentNode) not.remove(); activeEvent = null; }, 2000);
+        }
+    }, 1000);
+    btn.onclick = () => {
+        if (resolved || tLeft <= 0) return;
+        let ok = false;
+        if (ev.special) {
+            if (window.bonusTrigger) { ok = true; window.bonusTrigger = false; }
+        } else if (ev.act === 'voltage') ok = ev.chk();
+        else if (ev.act === 'switch') ok = ev.chk();
+        else if (ev.act === 'button') {
+            if (window.btnTrigger === ev.id) { ok = true; window.btnTrigger = null; }
+        }
+        if (ok) {
+            resolved = true;
+            clearInterval(interval);
+            addLog(ev.succ, 'success');
+            playSuccess();
+            toast(ev.succ);
+            if (ev.special) {
+                let blockReward = window.economySettings?.blockReward || 0.05;
+                player.balance += blockReward;
+                player.basePower = Math.floor(player.basePower * 1.1);
+                recalc();
+            }
+            not.remove();
+            activeEvent = null;
+        } else {
+            addLog("❌ Сначала выполните действие!", "warning");
+            toast("❌ Сначала выполните действие!");
+            playClick();
+        }
+    };
+}
+
+// ========== ПРОВЕРКА ТЕМПЕРАТУРЫ И OC ==========
+function checkAlarmAndOc(temp) {
+    let alarmCheckbox = document.getElementById('alarm');
+    let ocCheckbox = document.getElementById('overclock');
+    if (alarmCheckbox && alarmCheckbox.checked && temp > 85 && player.oc) {
+        player.oc = false;
+        ocCheckbox.checked = false;
+        addLog(`🔔 ALARM! Перегрев ${temp}°C! Оверклок автоматически отключён!`, 'warning');
+        toast(`🔔 ALARM! OC отключён из-за перегрева!`);
+        playAlert();
+        let ocLamp = ocCheckbox?.parentElement?.querySelector('.lamp');
+        if (ocLamp) ocLamp.className = 'lamp';
+    }
+}
+
+// ========== ЗАДАНИЯ ==========
+let tasks = [];
+let taskRefreshTime = 0;
+
+function updateTasksUI() {
+    let container = document.getElementById('tasksWindowContent');
+    if (!container) return;
+    container.innerHTML = `
+        <div class="stats-content">
+            <div style="margin-bottom:10px; font-size:14px; font-weight:bold;">🎯 Выполняйте задания для получения бонусов!</div>
+            ${tasks.map(t => `
+                <div class="task-item">
+                    <div><strong style="font-size:14px;">${t.name}</strong></div>
+                    <div style="font-size:12px;">${t.desc}</div>
+                    <div class="task-progress">Прогресс: ${Math.floor(t.progress)}/${t.target} ${t.unit}</div>
+                </div>
+            `).join('')}
+            <div style="margin-top:15px; font-size:12px; color:#ffaa66;">⏱️ Задания обновляются каждые 30 минут</div>
+        </div>
+    `;
+}
+
+function openTasksWindow() {
+    let win = createWin('📋 АКТИВНЫЕ ЗАДАНИЯ', '<div id="tasksWindowContent"></div>', 380, 400, 200, 150);
+    updateTasksUI();
+}
+
+// ========== МИКРОСОБЫТИЯ ==========
+let currentMicroEvent = null;
+let microEventTimeout = null;
+
+const microEvents = [
+    { name: "Скачок напряжения!", action: "Снизь напряжение до 11.5V", check: () => player.voltage <= 11.6, reward: 3 },
+    { name: "Шум вентилятора!", action: "Включи FAN на 100%", check: () => player.cooling.fan >= 95, reward: 3 },
+    { name: "Забился радиатор!", action: "Нажми ПРОДУВКУ", check: () => true, special: "blow", reward: 5 },
+    { name: "Нестабильная частота!", action: "Отключи OC", check: () => !player.oc, reward: 3 },
+    { name: "Перегрузка питания!", action: "Снизь напряжение", check: () => player.voltage <= 12, reward: 3 }
+];
+
+function triggerMicroEvent() {
+    if (!player.mining) return;
+    if (player.basePower < 50) return;
+    if (currentMicroEvent) return;
+    let ev = microEvents[Math.floor(Math.random() * microEvents.length)];
+    currentMicroEvent = ev;
+    toast(`⚠️ ${ev.name} ${ev.action}`);
+    addLog(`⚠️ МИКРОСОБЫТИЕ: ${ev.name} - ${ev.action}`, 'warning');
+    if (microEventTimeout) clearTimeout(microEventTimeout);
+    microEventTimeout = setTimeout(() => {
+        if (currentMicroEvent === ev) {
+            currentMicroEvent = null;
+            toast(`⏰ Время вышло! Штраф -3 чипа`);
+            player.chips = Math.max(0, player.chips - 3);
+        }
+    }, 15000);
+}
+
+// ========== ТРЕЙДЕР (заглушка, если отсутствует) ==========
+function startTraderSystem() {
+    // Если у вас уже есть реализация, удалите эту заглушку
+    console.log('Trader system started (stub)');
+}
+
+// ========== ДОПОЛНИТЕЛЬНЫЕ ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+
+window.bonusTrigger = false;
+window.btnTrigger = null;
+
 // ========== ИНИЦИАЛИЗАЦИЯ ИГРЫ ==========
 async function initGame() {
     const loadingBar = document.getElementById('loadingBar');
