@@ -2065,6 +2065,48 @@ async function loadUserProfile() {
     }
 }
 
+function recalc() {
+    if (!window.gameReady) return;
+    let total = 0;
+    for (let [id, c] of Object.entries(player.inv)) {
+        if (rigs[id]?.h) total += rigs[id].h * c;
+    }
+    // Учитываем PVP-бонус
+    let pvpBonus = player.pvpBonus || 0;
+    player.basePower = Math.max(2, total + pvpBonus);
+    
+    if (player.mining && player.energy <= 0) {
+        player.mining = false;
+        document.getElementById('minerMain').checked = false;
+        addLog(`⚠️ Недостаточно энергии! Майнинг остановлен.`, 'warning');
+        toast(`⚠️ Недостаточно энергии!`);
+    }
+    return player.basePower;
+}
+
+function initTasks() {
+    tasks = [
+        { name: "Стабилизируй напряжение", desc: "Держи 11.8-12.2V", progress: 0, target: 60, unit: "сек", type: "voltage" },
+        { name: "Собери чипы", desc: "Добудь чипы", progress: 0, target: 15, unit: "шт", type: "chips" },
+        { name: "Найди шары", desc: "Найди шары", progress: 0, target: 30, unit: "шт", type: "shares" }
+    ];
+    taskRefreshTime = Date.now() + 1800000;
+}
+
+function updateGauge(gaugeId, percent, valueId) {
+    let gauge = document.getElementById(gaugeId);
+    if (!gauge) return;
+    let circle = gauge.querySelector('.fill-circle');
+    if (!circle) return;
+    let circumference = 2 * Math.PI * 42;
+    let dash = Math.max(0, Math.min(circumference, (percent / 100) * circumference));
+    circle.style.strokeDasharray = `${dash} ${circumference}`;
+    if (valueId) {
+        let valEl = document.getElementById(valueId);
+        if (valEl) valEl.innerText = Math.floor(percent);
+    }
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ИГРЫ ==========
 async function initGame() {
     const loadingBar = document.getElementById('loadingBar');
