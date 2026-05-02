@@ -194,6 +194,7 @@ app.post('/api/auth/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
         
+        // Проверка на существующего пользователя
         const { data: existing } = await supabase
             .from('users')
             .select('username')
@@ -205,13 +206,50 @@ app.post('/api/auth/register', async (req, res) => {
         
         const hashedPassword = await bcrypt.hash(password, 10);
         
+        // Начальные значения для нового игрока
+        const defaultInv = { cpu_miner: 1 };
+        const defaultSaveData = {
+            balance: 0.00000000,
+            chips: 0,
+            energy: 100,
+            maxEnergy: 100,
+            basePower: 2,
+            voltage: 11.8,
+            oc: false,
+            shares: 0,
+            blocks: 0,
+            totalShares: 0,
+            totalBlocks: 0,
+            totalEarned: 0,
+            miningEarned: 0,
+            equipmentDamage: 0,
+            inv: defaultInv,
+            research: { gpu: false, asic: false, highEnd: false, industrial: false },
+            dust: 0,
+            solar: 0,
+            powerBank: 0,
+            pvpBonus: 0,
+            researchTimers: {},
+            researchCompleted: {}
+        };
+        
         const { data: user, error } = await supabase
             .from('users')
             .insert({
                 username,
                 email,
                 password: hashedPassword,
-                inv: { cpu_miner: 1 }
+                balance: 0.00000000,
+                chips: 0,
+                base_power: 2,
+                inv: defaultInv,
+                save_data: defaultSaveData,
+                last_active: new Date(),
+                is_banned: false,
+                defense: 30,
+                antivirus: 1,
+                firewall: false
+                // при необходимости добавьте другие колонки
             })
             .select()
             .single();
@@ -223,7 +261,13 @@ app.post('/api/auth/register', async (req, res) => {
         res.json({
             success: true,
             token,
-            user: { id: user.id, username: user.username, balance: user.balance }
+            user: { 
+                id: user.id, 
+                username: user.username, 
+                balance: user.balance,
+                chips: user.chips,
+                base_power: user.base_power
+            }
         });
     } catch (err) {
         console.error('Register error:', err);
