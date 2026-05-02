@@ -2341,7 +2341,7 @@ function triggerEvent() {
             playSuccess();
             toast(ev.succ);
             if (ev.special) {
-                let blockReward = window.economySettings?.blockReward || 0.05;
+                let blockReward = window.economySettings?.blockReward || 0.00000100;
                 player.balance += blockReward;
                 player.basePower = Math.floor(player.basePower * 1.1);
                 recalc();
@@ -2864,8 +2864,8 @@ if (!window.gameReady) return;
             
             // ========== ИСПРАВЛЕННОЕ НАЧИСЛЕНИЕ НАГРАД ==========
             // Получаем настройки от админа (или значения по умолчанию)
-            let shareReward = window.economySettings?.shareReward ?? 0.00002;
-            let chipsPerShare = window.economySettings?.chipsReward ?? 2;
+            let shareReward = window.economySettings?.shareReward ?? 0.00000001;
+            let chipsPerShare = window.economySettings?.chipsReward ?? 1;
             
             // Начисляем ТОЧНО по настройкам админа
             let earned = shareReward;
@@ -2885,7 +2885,7 @@ if (!window.gameReady) return;
             if (Math.random() < 0.002 * player.buffs.luck && player.shares > 5) {
                 player.blocks++;
                 player.totalBlocks++;
-                let blockReward = window.economySettings?.blockReward ?? 0.05;
+                let blockReward = window.economySettings?.blockReward ?? 0.00000100;
                 player.balance += blockReward;
                 player.totalEarned += blockReward;
                 addLog(`🏆 БЛОК #${player.blocks}! +${blockReward.toFixed(8)} SOL`, 'block');
