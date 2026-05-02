@@ -215,7 +215,8 @@
         console.log('Ответ сервера:', data);
         
         if (data.success) {
-            localStorage.setItem('mining_token', data.token);
+            localStorage.removeItem('mining_token');
+localStorage.setItem('mining_token', data.token);
             localStorage.setItem('mining_user', JSON.stringify(data.user));
             msgDiv.innerHTML = '<div class="message success">✅ ДОБРО ПОЖАЛОВАТЬ! ЗАГРУЗКА...</div>';
             setTimeout(() => {
