@@ -1802,19 +1802,18 @@ function addLog(msg, type = 'info') {
 
 async function loadGameFromServer() {
     if (!window.token) return false;
-    
+
     try {
         const res = await fetch('/api/game/profile', {
             headers: { 'Authorization': `Bearer ${window.token}` }
         });
         const data = await res.json();
         if (data.success && data.user) {
-            // ✅ Проверяем, что сервер вернул данные ИМЕННО нашего пользователя
             const localUser = JSON.parse(localStorage.getItem('mining_user') || '{}');
-            
+
+            // Если сервер вернул чужой профиль — восстанавливаем локальный сейв
             if (localUser.id && data.user.id && localUser.id !== data.user.id) {
                 console.warn('⚠️ Сервер вернул ЧУЖОЙ профиль! Использую локальные данные.');
-                // Загружаем из localStorage то, что сохранили при регистрации
                 const localSave = localStorage.getItem('miningSave');
                 if (localSave) {
                     const parsed = JSON.parse(localSave);
@@ -1845,9 +1844,9 @@ async function loadGameFromServer() {
                     console.log('✅ Загружен локальный сейв (сервер вернул чужие данные)');
                 }
             } else {
-                // ✅ ID совпадают — применяем данные с сервера
+                // ID совпадают — применяем данные с сервера
                 applyServerData(data.user);
-                // Обновляем локального пользователя
+                // Обновляем локальный идентификатор
                 localStorage.setItem('mining_user', JSON.stringify({
                     id: data.user.id,
                     username: data.user.username,
@@ -1858,32 +1857,32 @@ async function loadGameFromServer() {
                 console.log('✅ Загружен профиль с сервера');
             }
         }
-        
-        // ========== ОБНОВЛЯЕМ ИМЯ В ИНТЕРФЕЙСЕ ==========
+
+        // Обновление имени в интерфейсе (если есть данные)
         const usernameSpan = document.getElementById('profileUsername');
-        if (usernameSpan && data.user.username) {
+        if (usernameSpan && data.user && data.user.username) {
             usernameSpan.innerText = data.user.username;
         }
-        
+
         const profileBtn = document.getElementById('profileBtn');
-        if (profileBtn && data.user.username) {
+        if (profileBtn && data.user && data.user.username) {
             profileBtn.innerHTML = `<span></span> <span id="profileUsername">${data.user.username}</span> <span>▼</span>`;
         }
-        
-        // Обновляем баланс на экране
+
+        // Обновление основных счётчиков
         const balanceEl = document.getElementById('balanceLarge');
         if (balanceEl) balanceEl.innerText = player.balance.toFixed(8);
-        
+
         const chipsEl = document.getElementById('chipsCount');
         if (chipsEl) chipsEl.innerText = Math.floor(player.chips);
-        
+
         if (typeof updateUI === 'function') updateUI();
         if (typeof renderRigs === 'function') renderRigs();
         if (typeof recalc === 'function') recalc();
-        
+
         return true;
-    } catch(e) {
-        console.error('Ошибка загрузки:', e);
+    } catch (e) {
+        console.error('Ошибка загрузки с сервера:', e);
     }
     return false;
 }
@@ -1906,7 +1905,7 @@ function applyServerData(userData) {
     player.solar = Number(userData.solar) || 0;
     player.powerBank = Number(userData.power_bank) || 0;
     player.pvpBonus = Number(userData.pvp_bonus) || 0;
-    
+
     // Инвентарь и исследования
     if (userData.inv && typeof userData.inv === 'object') {
         player.inv = { ...userData.inv };
@@ -1914,65 +1913,8 @@ function applyServerData(userData) {
     if (userData.research && typeof userData.research === 'object') {
         player.research = { ...userData.research };
     }
-    
-    // save_data (если есть)
-    if (userData.save_data && typeof userData.save_data === 'object') {
-        const sd = userData.save_data;
-        player.balance = Number(sd.balance) ?? player.balance;
-        player.chips = Number(sd.chips) ?? player.chips;
-        player.energy = Number(sd.energy) ?? player.energy;
-        player.maxEnergy = Number(sd.maxEnergy) ?? player.maxEnergy;
-        player.basePower = Number(sd.basePower) ?? player.basePower;
-        player.voltage = Number(sd.voltage) ?? player.voltage;
-        player.oc = !!sd.oc;
-        player.shares = Number(sd.shares) ?? player.shares;
-        player.blocks = Number(sd.blocks) ?? player.blocks;
-        player.totalShares = Number(sd.totalShares) ?? player.totalShares;
-        player.totalBlocks = Number(sd.totalBlocks) ?? player.totalBlocks;
-        player.totalEarned = Number(sd.totalEarned) ?? player.totalEarned;
-        player.miningEarned = Number(sd.miningEarned) ?? player.miningEarned;
-        player.equipmentDamage = Number(sd.equipmentDamage) ?? player.equipmentDamage;
-        player.dust = Number(sd.dust) ?? player.dust;
-        player.solar = Number(sd.solar) ?? player.solar;
-        player.powerBank = Number(sd.powerBank) ?? player.powerBank;
-        player.pvpBonus = Number(sd.pvpBonus) ?? player.pvpBonus;
-        if (sd.inv && typeof sd.inv === 'object') player.inv = { ...sd.inv };
-        if (sd.research && typeof sd.research === 'object') player.research = { ...sd.research };
-        if (sd.researchTimers) player.researchTimers = { ...sd.researchTimers };
-        if (sd.researchCompleted) player.researchCompleted = { ...sd.researchCompleted };
-    }
-}
 
-
-
-function applyServerData(userData) {
-    // Применяем данные с сервера к player
-    player.balance = Number(userData.balance) || 0;
-    player.chips = Number(userData.chips) || 0;
-    player.basePower = Number(userData.base_power) || 2;
-    player.energy = Number(userData.energy) || 100;
-    player.maxEnergy = Number(userData.max_energy) || 100;
-    player.shares = Number(userData.shares) || 0;
-    player.blocks = Number(userData.blocks) || 0;
-    player.totalShares = Number(userData.total_shares) || 0;
-    player.totalBlocks = Number(userData.total_blocks) || 0;
-    player.totalEarned = Number(userData.total_earned) || 0;
-    player.miningEarned = Number(userData.mining_earned) || 0;
-    player.equipmentDamage = Number(userData.equipment_damage) || 0;
-    player.dust = Number(userData.dust) || 0;
-    player.solar = Number(userData.solar) || 0;
-    player.powerBank = Number(userData.power_bank) || 0;
-    player.pvpBonus = Number(userData.pvp_bonus) || 0;
-    
-    // Инвентарь и исследования
-    if (userData.inv && typeof userData.inv === 'object') {
-        player.inv = { ...userData.inv };
-    }
-    if (userData.research && typeof userData.research === 'object') {
-        player.research = { ...userData.research };
-    }
-    
-    // save_data (если есть)
+    // Дополнительные данные из save_data (если есть)
     if (userData.save_data && typeof userData.save_data === 'object') {
         const sd = userData.save_data;
         player.balance = Number(sd.balance) ?? player.balance;
@@ -2004,14 +1946,14 @@ function applyServerData(userData) {
 async function saveGameToServer() {
     window.token = localStorage.getItem('mining_token');
     if (!window.token) return false;
-    
+
     // Обновляем активное время игры
     if (document.visibilityState === 'visible') {
         const now = Date.now();
         window.gameActiveTime += now - window.lastActiveCheck;
         window.lastActiveCheck = now;
     }
-    
+
     try {
         const response = await fetch('/api/game/save', {
             method: 'POST',
@@ -2020,38 +1962,37 @@ async function saveGameToServer() {
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-    save_data: {
-        balance: player.balance,
-        chips: player.chips,
-        energy: player.energy,
-        maxEnergy: player.maxEnergy,
-        basePower: player.basePower,
-        voltage: player.voltage,
-        oc: player.oc,
-        shares: player.shares,
-        blocks: player.blocks,
-        totalShares: player.totalShares,
-        totalBlocks: player.totalBlocks,
-        totalEarned: player.totalEarned,
-        miningEarned: player.miningEarned,
-        equipmentDamage: player.equipmentDamage,
-        inv: player.inv,
-        research: player.research,
-        dust: player.dust,
-        solar: player.solar,
-        powerBank: player.powerBank,
-        pvpBonus: player.pvpBonus,
-        researchTimers: player.researchTimers,
-        researchCompleted: player.researchCompleted,
-        totalGameTime: window.gameActiveTime,
-        totalMiningTime: player.miningTime
-    }
-})
+                save_data: {
+                    balance: player.balance,
+                    chips: player.chips,
+                    energy: player.energy,
+                    maxEnergy: player.maxEnergy,
+                    basePower: player.basePower,
+                    voltage: player.voltage,
+                    oc: player.oc,
+                    shares: player.shares,
+                    blocks: player.blocks,
+                    totalShares: player.totalShares,
+                    totalBlocks: player.totalBlocks,
+                    totalEarned: player.totalEarned,
+                    miningEarned: player.miningEarned,
+                    equipmentDamage: player.equipmentDamage,
+                    inv: player.inv,
+                    research: player.research,
+                    dust: player.dust,
+                    solar: player.solar,
+                    powerBank: player.powerBank,
+                    pvpBonus: player.pvpBonus,
+                    researchTimers: player.researchTimers,
+                    researchCompleted: player.researchCompleted,
+                    totalGameTime: window.gameActiveTime,
+                    totalMiningTime: player.miningTime
+                }
+            })
         });
-        
+
         const data = await response.json();
         if (data.success) {
-            
             return true;
         } else {
             console.error('❌ Ошибка сохранения:', data.error);
@@ -2063,297 +2004,7 @@ async function saveGameToServer() {
     }
 }
 
-function updateGauge(gaugeId, percent, valueId) {
-    let gauge = document.getElementById(gaugeId);
-    if (!gauge) return;
-    let circle = gauge.querySelector('.fill-circle');
-    if (!circle) return;
-    let circumference = 2 * Math.PI * 42;
-    let dash = Math.max(0, Math.min(circumference, (percent / 100) * circumference));
-    circle.style.strokeDasharray = `${dash} ${circumference}`;
-    if (valueId) {
-        let valEl = document.getElementById(valueId);
-        if (valEl) valEl.innerText = Math.floor(percent);
-    }
-}
-
-let fanSlider = document.getElementById('coolFanSlider');
-let pumpSlider = document.getElementById('coolPumpSlider');
-let waterSlider = document.getElementById('coolWaterSlider');
-let coolingLed = document.getElementById('coolingLed');
-let coolingRisk = document.getElementById('coolingRisk');
-
-let lastOverheatLog = 0;
-const OVERHEAT_LOG_COOLDOWN = 10000; // 10 секунд
-
-function updateCooling() {
-    player.cooling.fan = parseInt(fanSlider.value);
-    player.cooling.pump = parseInt(pumpSlider.value);
-    player.cooling.water = parseInt(waterSlider.value);
-    let efficiency = (player.cooling.fan * 0.4 + player.cooling.pump * 0.3 + player.cooling.water * 0.3) / 100;
-    let risk = Math.max(0, (100 - (player.cooling.fan + player.cooling.pump + player.cooling.water) / 3) / 2);
-    coolingRisk.innerHTML = `⚠️ Риск перегрева: ${Math.floor(risk)}%`;
-    coolingLed.style.background = `#44aaff`;
-}
-
-if (fanSlider) fanSlider.addEventListener('input', updateCooling);
-if (pumpSlider) pumpSlider.addEventListener('input', updateCooling);
-if (waterSlider) waterSlider.addEventListener('input', updateCooling);
-
-let lastWiringFaultTime = 0;
-
-function updateWiringDisplay() {
-    let grid = document.getElementById('wiringGrid');
-    if (!grid) return;
-    let ports = ['CPU', 'GPU', 'RAM', 'PSU', 'COOL', 'NET'];
-    grid.innerHTML = '';
-    for (let i = 0; i < 6; i++) {
-        let port = document.createElement('div');
-        port.className = 'wiring-port';
-        if (player.wiringFaults[i]) port.classList.add('fault');
-        port.innerHTML = `<div class="port-icon">${['🔌','⚡','💾','⚙️','❄️','🌐'][i]}</div><div class="port-label">${ports[i]}</div>`;
-        port.onclick = () => fixWiringPort(i);
-        grid.appendChild(port);
-    }
-    let faultCount = player.wiringFaults.filter(f => f).length;
-    let penalty = faultCount * 5;
-    let statusEl = document.getElementById('wiringStatus');
-    if (statusEl) statusEl.innerHTML = faultCount === 0 ? '✅ Все провода исправны' : `⚠️ ${faultCount} неисправных проводов (штраф -${penalty}% хешрейта)`;
-}
-
-function fixWiringPort(index) {
-    if (!player.wiringFaults[index]) {
-        toast(`🔌 Порт ${['CPU','GPU','RAM','PSU','COOL','NET'][index]} уже исправен`);
-        return;
-    }
-    let cost = window.gameBalance?.repairCost ?? 0.00000001;
-let chipCost = window.gameBalance?.repairChips ?? 2;
-    if (player.balance >= cost && player.chips >= chipCost) {
-        player.balance -= cost;
-        player.chips -= chipCost;
-        player.wiringFaults[index] = false;
-        addLog(`🔧 Починен порт ${['CPU','GPU','RAM','PSU','COOL','NET'][index]} (-${cost.toFixed(3)} SOL, -${chipCost} чипов)`, 'success');
-        playSuccess();
-        updateWiringDisplay();
-    } else {
-        addLog(`❌ Недостаточно ресурсов для ремонта (нужно ${cost.toFixed(3)} SOL + ${chipCost} чипов)`, 'error');
-    }
-}
-
-function randomWiringFault() {
-    let now = Date.now();
-    if (now - lastWiringFaultTime < 1200000) return;
-    if (Math.random() < 0.08) {
-        let faultIndex = Math.floor(Math.random() * 6);
-        if (!player.wiringFaults[faultIndex]) {
-            player.wiringFaults[faultIndex] = true;
-            lastWiringFaultTime = now;
-            let faultCount = player.wiringFaults.filter(f => f).length;
-            addLog(`⚠️ Оборвался провод в порте ${['CPU','GPU','RAM','PSU','COOL','NET'][faultIndex]}! Штраф -${faultCount * 5}% хешрейта!`, 'warning');
-            toast(`⚠️ Оборвался провод! -${faultCount * 5}% хешрейта`);
-            updateWiringDisplay();
-            playFail();
-        }
-    }
-}
-
-// Кулдаун на PVP (1 час)
-let lastPvpAttack = 0;
-const PVP_COOLDOWN = 3600000; // 1 час
-
-function steal(target) {
-    if (!player.mining) {
-        toast(`⛔ Майнинг выключен! Включи MINER, чтобы атаковать.`);
-        playFail();
-        return;
-    }
-    
-    let now = Date.now();
-    if (now - lastPvpAttack < PVP_COOLDOWN) {
-        let remaining = Math.ceil((PVP_COOLDOWN - (now - lastPvpAttack)) / 1000);
-        let minutes = Math.floor(remaining / 60);
-        let seconds = remaining % 60;
-        toast(`⏱️ Следующая атака через ${minutes}м ${seconds}с.`);
-        playClick();
-        return;
-    }
-    
-    lastPvpAttack = now;
-    
-    // ИСПРАВЛЕНО: используем настройки от админа
-    let baseChance = window.gameBalance?.pvpChance ?? 35;
-// Убираем ограничение 80%, оставляем только минимум 0% и максимум 100%
-let chance = Math.max(0, Math.min(100, baseChance + player.hashPower / 200 - target.def / 2));
-    let succ = Math.random() * 100 < chance;
-    let stealPct = (window.gameBalance?.pvpFailPen ?? 15) / 100;
-    
-    if (succ) {
-        let stolen = Math.floor(target.pw * stealPct);
-        let oldPower = player.basePower;
-        player.basePower = Math.max(2, player.basePower + stolen);
-        player.pvpBonus = (player.pvpBonus || 0) + stolen;
-        target.pw = Math.max(10, target.pw - stolen);
-        player.stolen = Math.min(40, player.stolen + (stolen / player.basePower * 100));
-        
-        recalc();
-        updateUI();
-        renderRigs();
-        
-        addLog(`✅ КРАЖА УСПЕШНА! +${stolen} TH/s (было ${oldPower}, стало ${player.basePower})`, 'success');
-        playSuccess();
-        toast(`✅ +${stolen} TH/s!`);
-    } else {
-        let penalty = (window.gameBalance?.pvpFailPen ?? 15) / 100;
-        let lostPower = Math.floor(player.basePower * penalty);
-        let oldPower = player.basePower;
-        let actualLost = Math.max(1, lostPower);
-        player.basePower = Math.max(2, player.basePower - actualLost);
-        
-        if (player.pvpBonus) {
-            player.pvpBonus = Math.max(0, player.pvpBonus - actualLost);
-        }
-        
-        let damage = Math.floor(penalty * 40);
-        player.equipmentDamage = Math.min(100, player.equipmentDamage + damage);
-        
-        recalc();
-        updateUI();
-        renderRigs();
-        
-        addLog(`💀 КРАЖА ПРОВАЛИЛАСЬ! Потеряно ${actualLost} TH/s (было ${oldPower}, стало ${player.basePower})`, 'error');
-        playFail();
-        toast(`💀 ПРОВАЛ! -${actualLost} TH/s!`);
-    }
-    updatePlayerList();
-}
-
-function updatePlayerList() {
-    let c = document.getElementById('playerList');
-    if (!c) return;
-    c.innerHTML = otherPlayers.map(p => `<div class="pvp-player"><div><span class="pvp-player-name">${p.n}</span><br><span style="font-size:10px;">${p.pw} TH/s | Защита: ${p.def}%</span></div><button class="steal-button" data-name="${p.n}" data-power="${p.pw}" data-defense="${p.def}">🕵️ КРАСТЬ</button></div>`).join('');
-    document.querySelectorAll('.steal-button').forEach(b => b.onclick = () => steal({ name: b.dataset.name, pw: parseInt(b.dataset.power), def: parseInt(b.dataset.defense) }));
-}
-
-const eventTypes = [
-    { icon: "🌩️", n: "ГРОЗА", dur: 25, d: "Скачки напряжения! Снизьте напряжение до 11V!", act: "voltage", chk: () => player.voltage <= 11.2, succ: "✅ Напряжение снижено!", fail: "💥 Потеряно 20% мощности!", eff: () => { player.basePower = Math.max(2, player.basePower * 0.8); recalc(); } },
-    { icon: "⚡", n: "ЭНЕРГОКРИЗИС", dur: 25, d: "Резкий скачок цен! Выключите PUMP!", act: "switch", id: "pump", chk: () => !document.getElementById('pump').checked, succ: "✅ PUMP выключен!", fail: "💰 ШТРАФ 15% БАЛАНСА!", eff: () => { player.balance *= 0.85; } },
-    { icon: "🔥", n: "ПЕРЕГРЕВ", dur: 25, d: "Температура зашкаливает! Включите FAN!", act: "switch", id: "fan", chk: () => document.getElementById('fan').checked, succ: "✅ Вентиляторы охладили!", fail: "🔥 Сгорело 20% оборудования!", eff: () => { let items = Object.entries(player.inv).filter(([id, c]) => c > 0 && rigs[id]?.h); if (items.length) { let [id, cnt] = items[Math.floor(Math.random() * items.length)], lost = Math.ceil(cnt * 0.2); player.inv[id] = Math.max(0, cnt - lost); player.basePower -= rigs[id].h * lost; addLog(`🔥 Сгорело ${lost} шт. ${rigs[id].n}!`, 'error'); } recalc(); } },
-    { icon: "🕵️", n: "ХАКЕРСКАЯ АТАКА", dur: 20, d: "Активируйте ФАЙРВОЛ в защите!", act: "button", id: "firewallBtn", chk: () => player.firewall, succ: "✅ Файрвол отразил атаку!", fail: "💀 Потеряно 25% баланса и 15% мощности!", eff: () => { player.balance *= 0.75; player.basePower = Math.max(2, player.basePower * 0.85); recalc(); } },
-    { icon: "📉", n: "ОБВАЛ КРИПТЫ", dur: 30, d: "Курс SOL рухнул! Отключите OC!", act: "switch", id: "overclock", chk: () => !document.getElementById('overclock').checked, succ: "✅ OC отключён!", fail: "💸 ПОТЕРЯНО 30% БАЛАНСА!", eff: () => { player.balance *= 0.7; } }
-];
-
-function showEvent(ev) {
-    let old = document.querySelector('.event-notification');
-    if (old) old.remove();
-    playAlert();
-    let d = document.createElement('div');
-    d.className = 'event-notification';
-    d.innerHTML = `<div class="event-icon">${ev.icon}</div><div class="event-name">⚠️ ${ev.n} ⚠️</div><div class="event-desc">${ev.d}</div><div class="event-timer" id="evTimer">${ev.dur}</div><div class="event-action">✅ НУЖНО: ${ev.act === 'voltage' ? 'СНИЗИТЬ НАПРЯЖЕНИЕ ДО 11V' : ev.act === 'switch' ? 'ПЕРЕКЛЮЧИТЬ ТУМБЛЕР ' + ev.id.toUpperCase() : 'НАЖАТЬ КНОПКУ В ОКНЕ ЗАЩИТЫ'}</div><button id="resolveBtn" class="resolve-btn">✅ РЕШИТЬ</button>`;
-    document.body.appendChild(d);
-    return d;
-}
-
-function triggerEvent() {
-    if (activeEvent || !player.mining) return;
-    let ev = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-    activeEvent = ev;
-    let not = showEvent(ev), timer = not.querySelector('#evTimer'), btn = not.querySelector('#resolveBtn'), tLeft = ev.dur, resolved = false;
-    let interval = setInterval(() => {
-        tLeft--;
-        if (timer) timer.innerText = tLeft;
-        if (tLeft <= 0 && !resolved) {
-            clearInterval(interval);
-            btn.disabled = true;
-            btn.classList.add('disabled');
-            btn.innerText = '⌛ ВРЕМЯ ВЫШЛО';
-            addLog(ev.fail, 'error');
-            playFail();
-            toast(ev.fail);
-            if (ev.eff) ev.eff();
-            setTimeout(() => { if (not.parentNode) not.remove(); activeEvent = null; }, 2000);
-        }
-    }, 1000);
-    btn.onclick = () => {
-        if (resolved || tLeft <= 0) return;
-        let ok = false;
-        if (ev.special) {
-            if (window.bonusTrigger) { ok = true; window.bonusTrigger = false; }
-        } else if (ev.act === 'voltage') ok = ev.chk();
-        else if (ev.act === 'switch') ok = ev.chk();
-        else if (ev.act === 'button') {
-            if (window.btnTrigger === ev.id) { ok = true; window.btnTrigger = null; }
-        }
-        if (ok) {
-            resolved = true;
-            clearInterval(interval);
-            addLog(ev.succ, 'success');
-            playSuccess();
-            toast(ev.succ);
-            if (ev.special) {
-                let blockReward = window.economySettings?.blockReward || 0.05;
-player.balance += blockReward;
-                player.basePower = Math.floor(player.basePower * 1.1);
-                recalc();
-            }
-            not.remove();
-            activeEvent = null;
-        } else {
-            addLog("❌ Сначала выполните действие!", "warning");
-            toast("❌ Сначала выполните действие!");
-            playClick();
-        }
-    };
-}
-
-window.bonusTrigger = false;
-window.btnTrigger = null;
-window.triggerBonus = () => {
-    if (activeEvent && activeEvent.special) {
-        window.bonusTrigger = true;
-        addLog("🎯 Бонус захвачен! Нажмите РЕШИТЬ!", "success");
-        playSuccess();
-        toast("🎯 Бонус захвачен! Нажмите РЕШИТЬ!");
-    }
-};
-
-function recalc() {
-if (!window.gameReady) return;
-    let total = 0;
-    for (let [id, c] of Object.entries(player.inv)) {
-        if (rigs[id]?.h) total += rigs[id].h * c;
-    }
-    // Учитываем PVP-бонус
-    let pvpBonus = player.pvpBonus || 0;
-    player.basePower = Math.max(2, total + pvpBonus);
-    
-    if (player.mining && player.energy <= 0) {
-        player.mining = false;
-        document.getElementById('minerMain').checked = false;
-        addLog(`⚠️ Недостаточно энергии! Майнинг остановлен.`, 'warning');
-        toast(`⚠️ Недостаточно энергии!`);
-    }
-    
-    return player.basePower;
-}
-
-function checkAlarmAndOc(temp) {
-    let alarmCheckbox = document.getElementById('alarm');
-    let ocCheckbox = document.getElementById('overclock');
-    if (alarmCheckbox && alarmCheckbox.checked && temp > 85 && player.oc) {
-        player.oc = false;
-        ocCheckbox.checked = false;
-        addLog(`🔔 ALARM! Перегрев ${temp}°C! Оверклок автоматически отключён!`, 'warning');
-        toast(`🔔 ALARM! OC отключён из-за перегрева!`);
-        playAlert();
-        let ocLamp = ocCheckbox?.parentElement?.querySelector('.lamp');
-        if (ocLamp) ocLamp.className = 'lamp';
-    }
-}
-
-let tasks = [];
-let taskRefreshTime = 0;
-
-// ========== ЛОКАЛЬНОЕ СОХРАНЕНИЕ (добавлено для доступности) ==========
+// ========== ЛОКАЛЬНОЕ СОХРАНЕНИЕ (резервное) ==========
 function saveGame() {
     if (typeof player !== 'undefined') {
         localStorage.setItem('miningSave', JSON.stringify(player));
@@ -2365,9 +2016,8 @@ function loadGame() {
     if (saved) {
         try {
             const data = JSON.parse(saved);
-            // ✅ Проверяем, что это валидные данные
+            // Проверяем, что это валидные данные
             if (data && typeof data === 'object' && 'balance' in data) {
-                // Безопасно применяем, только существующие поля
                 const safeFields = [
                     'balance', 'chips', 'energy', 'maxEnergy', 'basePower',
                     'voltage', 'oc', 'shares', 'blocks', 'totalShares',
@@ -2397,12 +2047,10 @@ function loadGame() {
             }
         } catch (e) {
             console.error('❌ Ошибка загрузки сейва:', e);
-            // Повреждённый сейв — удаляем
             localStorage.removeItem('miningSave');
         }
     }
 }
-
 
 async function loadUserProfile() {
     if (typeof token !== 'undefined' && token) {
@@ -2411,29 +2059,30 @@ async function loadUserProfile() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             await res.json();
-        } catch(e) {
+        } catch (e) {
             console.error('Ошибка загрузки профиля:', e);
         }
     }
 }
 
+// ========== ИНИЦИАЛИЗАЦИЯ ИГРЫ ==========
 async function initGame() {
     const loadingBar = document.getElementById('loadingBar');
     if (loadingBar) loadingBar.style.width = '20%';
 
-    // 1. Сначала быстро грузим локальный сейв (резерв)
+    // 1. Быстрая локальная загрузка (резерв)
     loadGame();
     if (loadingBar) loadingBar.style.width = '30%';
 
-    // 2. Загружаем профиль пользователя
+    // 2. Загрузка профиля с сервера
     await loadUserProfile();
     if (loadingBar) loadingBar.style.width = '50%';
 
-    // 3. Загружаем прогресс с сервера (перезапишет локальный, если сервер доступен)
+    // 3. Загрузка прогресса с сервера (перезапишет локальное, если доступно)
     await loadGameFromServer();
     if (loadingBar) loadingBar.style.width = '90%';
 
-    // Инициализация всех систем
+    // Инициализация систем
     initTasks();
     recalc();
     renderRigs();
@@ -2443,7 +2092,7 @@ async function initGame() {
     updateWiringDisplay();
     startTraderSystem();
 
-    // Обновляем весь UI после загрузки
+    // Обновление UI
     if (typeof updateUI === 'function') updateUI();
     if (typeof renderRigs === 'function') renderRigs();
     if (typeof recalc === 'function') recalc();
@@ -2461,16 +2110,18 @@ async function initGame() {
     // Игра готова
     window.gameReady = true;
 
-    // Запускаем интервалы
+    // Запуск интервалов
     setInterval(updateWeather, 10000);
     setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
     setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
 
-    // Автосохранение на сервер
+    // Автосохранение (локальное + на сервер) каждые 30 секунд
     setInterval(() => {
+        saveGame();
         saveGameToServer();
     }, 30000);
 
+    // Сохранение при закрытии
     window.addEventListener('beforeunload', () => {
         saveGameToServer();
     });
@@ -2479,125 +2130,15 @@ async function initGame() {
     addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');
 }
 
-// После загрузки с сервера или через 5 секунд – принудительно включаем
+// Fallback: если по какой-то причине игра не запустилась через 5 секунд
 setTimeout(() => {
     if (!window.gameReady) {
         window.gameReady = true;
         console.log('✅ Игра принудительно запущена (fallback после таймаута)');
-        updateUI();
-        recalc();
+        if (typeof updateUI === 'function') updateUI();
+        if (typeof recalc === 'function') recalc();
     }
 }, 5000);
-
-function initTasks() {
-    tasks = [
-        { name: "Стабилизируй напряжение", desc: "Держи 11.8-12.2V", progress: 0, target: 60, unit: "сек", type: "voltage" },
-        { name: "Собери чипы", desc: "Добудь чипы", progress: 0, target: 15, unit: "шт", type: "chips" },
-        { name: "Найди шары", desc: "Найди шары", progress: 0, target: 30, unit: "шт", type: "shares" }
-    ];
-    taskRefreshTime = Date.now() + 1800000;
-}
-    // Инициализация всех систем
-    initTasks();
-    recalc();
-    renderRigs();
-    updateVoltage();
-    updateWeather();
-    updateCooling();
-    updateWiringDisplay();
-    startTraderSystem();
-    
-    // Обновляем весь UI после загрузки
-    if (typeof updateUI === 'function') updateUI();
-    if (typeof renderRigs === 'function') renderRigs();
-    if (typeof recalc === 'function') recalc();
-
-    if (loadingBar) loadingBar.style.width = '100%';
-
-    // Скрываем экран загрузки
-    const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.style.transition = 'opacity 0.5s';
-        loadingScreen.style.opacity = '0';
-        setTimeout(() => loadingScreen.remove(), 500);
-    }
-
-    // ТЕПЕРЬ игра готова
-    window.gameReady = true;
-   
-    // Запускаем интервалы
-    setInterval(updateWeather, 10000);
-    setInterval(() => { if (!activeEvent && player.mining && Math.random() < 0.15) triggerEvent(); }, 45000);
-    setInterval(() => { if (player.mining && player.basePower > 30 && Math.random() < 0.03) triggerMicroEvent(); }, 45000 + Math.random() * 45000);
-    
-    // ========== АВТОСОХРАНЕНИЕ НА СЕРВЕР ==========
-    // Каждые 30 секунд
-    setInterval(() => {
-        saveGame();
-        saveGameToServer();
-    }, 30000);
-    
-    // При закрытии страницы
-    window.addEventListener('beforeunload', () => {
-        saveGameToServer();
-    });
-    
-    addLog('🕹️ MINING SIMULATOR 747 — HARDCORE EDITION v3.2', 'success');
-    addLog('💾 Прогресс автоматически сохраняется на сервер каждые 30 секунд', 'success');  
-
-
-function updateTasksUI() {
-    let container = document.getElementById('tasksWindowContent');
-    if (!container) return;
-    container.innerHTML = `
-        <div class="stats-content">
-            <div style="margin-bottom:10px; font-size:14px; font-weight:bold;">🎯 Выполняйте задания для получения бонусов!</div>
-            ${tasks.map(t => `
-                <div class="task-item">
-                    <div><strong style="font-size:14px;">${t.name}</strong></div>
-                    <div style="font-size:12px;">${t.desc}</div>
-                    <div class="task-progress">Прогресс: ${Math.floor(t.progress)}/${t.target} ${t.unit}</div>
-                </div>
-            `).join('')}
-            <div style="margin-top:15px; font-size:12px; color:#ffaa66;">⏱️ Задания обновляются каждые 30 минут</div>
-        </div>
-    `;
-}
-
-function openTasksWindow() {
-    let win = createWin('📋 АКТИВНЫЕ ЗАДАНИЯ', '<div id="tasksWindowContent"></div>', 380, 400, 200, 150);
-    updateTasksUI();
-}
-
-let currentMicroEvent = null;
-let microEventTimeout = null;
-
-const microEvents = [
-    { name: "Скачок напряжения!", action: "Снизь напряжение до 11.5V", check: () => player.voltage <= 11.6, reward: 3 },
-    { name: "Шум вентилятора!", action: "Включи FAN на 100%", check: () => player.cooling.fan >= 95, reward: 3 },
-    { name: "Забился радиатор!", action: "Нажми ПРОДУВКУ", check: () => true, special: "blow", reward: 5 },
-    { name: "Нестабильная частота!", action: "Отключи OC", check: () => !player.oc, reward: 3 },
-    { name: "Перегрузка питания!", action: "Снизь напряжение", check: () => player.voltage <= 12, reward: 3 }
-];
-
-function triggerMicroEvent() {
-    if (!player.mining) return;
-    if (player.basePower < 50) return;
-    if (currentMicroEvent) return;
-    let ev = microEvents[Math.floor(Math.random() * microEvents.length)];
-    currentMicroEvent = ev;
-    toast(`⚠️ ${ev.name} ${ev.action}`);
-    addLog(`⚠️ МИКРОСОБЫТИЕ: ${ev.name} - ${ev.action}`, 'warning');
-    if (microEventTimeout) clearTimeout(microEventTimeout);
-    microEventTimeout = setTimeout(() => {
-        if (currentMicroEvent === ev) {
-            currentMicroEvent = null;
-            toast(`⏰ Время вышло! Штраф -3 чипа`);
-            player.chips = Math.max(0, player.chips - 3);
-        }
-    }, 15000);
-}
-
 function checkMicroEvent() {
     if (!currentMicroEvent) return;
     let ok = false;
